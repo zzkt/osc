@@ -4,7 +4,8 @@ This is a common-lisp implementation of the Open Sound Control Protocol, aka OSC
 
 else ->
  - specific info about what is/isnt working can be found in the header of osc.lisp 
- - more details about OSC can be found at  http://www.cnmat.berkeley.edu/OpenSoundControl/
+ - more details about OSC can be found at 
+            http://www.cnmat.berkeley.edu/OpenSoundControl/
  - current versions of this code can be found at http://fo.am/darcs/osc
 
 

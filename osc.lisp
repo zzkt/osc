@@ -54,7 +54,9 @@
 ;;  2005-01-26 
 ;;    - fixed string handling bug
 ;;  2005-02-08  
-;;    - in-package'd 
+;;    - in-package'd
+;;  2005-03-01
+;;    - fixed address string bug
 
 (defpackage :osc
   (:use :cl)
@@ -93,34 +95,31 @@
    s => #(115) => string"
 
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
-    (vector-push-extend (char-code #\,) lump) ; typetag begins with ","
-    (dolist (x data) 
-      (typecase x
-	(integer
-	 (vector-push-extend (char-code #\i) lump))
-	(float 
-	 (vector-push-extend (char-code #\f) lump))
-	(simple-string 
-	 (vector-push-extend (char-code #\s) lump))
-	(t 
-	 (error "can only encode ints, floats or string"))))
-    (cat lump
-	 (pad (padding-length (length lump))))))      
+    (macrolet ((write-to-vector (char)
+                 `(vector-push-extend
+                   (char-code ,char) lump)))
+      (write-to-vector #\,)
+      (dolist (x data) 
+        (typecase x
+          (integer (write-to-vector #\i))
+          (float (write-to-vector #\f))
+          (simple-string (write-to-vector #\s))
+          (t (error "can only encode ints, floats or strings"))))
+      (cat lump
+           (pad (padding-length (length lump)))))))     
 		  
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
-    (dolist (x data) 
-      (typecase x
-	(integer
-	 (setf lump (cat lump (encode-int32 x)))) 
-	(float 
-	 (setf lump (cat lump (encode-float32 x)))) 
-	(simple-string 
-	 (setf lump (cat lump (encode-string x)))) 
-	(t 
-	 (error "wrong type. turn back"))))
-    lump))
+    (macrolet ((enc (f)
+                 `(setf lump (cat lump (,f x)))))
+      (dolist (x data) 
+        (typecase x
+          (integer (enc encode-int32)) 
+          (float (enc encode-float32)) 
+          (simple-string (enc encode-string)) 
+          (t (error "wrong type. turn back"))))
+      lump)))
 
 (defun encode-string (string)
   (cat (map 'vector #'char-code string) 
@@ -135,13 +134,15 @@
 
 (defun decode-message (message)
   "reduces an osc message to an (address . data) pair. .."
-  (declare (omptimize debug 3)) 
   (let ((x (position (char-code #\,) message)))
-    (cons (decode-address (subseq message 0 x))
-	  (decode-taged-data (subseq message x)))))
+    (if (eq x NIL)
+        (format "message contains no data.. ")
+        (cons (decode-address (subseq message 0 x))
+              (decode-taged-data (subseq message x))))))
 
 (defun decode-address (address)
-  (coerce (map 'vector #'code-char address) 'string))
+  (coerce (map 'vector #'code-char (delete 0 address))
+   'string))
  
 (defun decode-taged-data (data)
   "decodes data encoded with typetags...
@@ -187,17 +188,24 @@
 	collect (subseq string i j)
 	while j))
 
+
+;;;;; ; ; ;;    ;; ; ;
+;;
 ;; dataformat en- de- cetera.
+;;
+;;; ;; ;   ;  ;
  
 (defun encode-float32 (f)
-  "encode an ieee754 float as a 4 byte vector. currently sbcl specifc"
+  "encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specifc"
   #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
-  #-sbcl (error "cant encode floats using this implementation"))
+  #+cmucl (encode-int32 (kernel:single-float-bits f))
+  #-(or sbcl cmucl) (error "cant encode floats using this implementation"))
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
   #+sbcl (sb-kernel:make-single-float (decode-int32 s))
-  #-sbcl (error "cant decode floats using this implementation"))
+  #+cmucl (kernel:make-single-float (decode-int32 s))
+  #-(or sbcl cmucl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
   "4 byte > 32 bit int > two's compliment (in network byte order)"
