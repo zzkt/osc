@@ -34,10 +34,9 @@
   "a basic test function which attempts to decode osc stuff a 
    given port. default ogreOSC port is 4178"
 
-  (let ((s (make-instance 
-	    'inet-socket :type :datagram :protocol :udp))
+  (let ((s (make-udp-socket))
         (buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
-    (socket-bind s #(127 0 0 1) port)
+    (socket-bind s #(0 0 0 0) port)
     (format t "listening on localhost port ~A~%~%" port)
     (unwind-protect 
 	(loop do
@@ -49,12 +48,10 @@
 (defun osc-reflector (listen-port send-ip send-port) 
   "reflector.. . listens on a given port and sends out on another
    note ip#s need to be in the format #(127 0 0 1) for now.. ."
-  (let ((in (make-instance 
-	     'inet-socket :type :datagram :protocol :udp))
-        (out (make-instance 
-	      'inet-socket :type :datagram :protocol :udp))
+  (let ((in (make-udp-socket))
+        (out (make-udp-socket))
 	(buffer (make-sequence '(vector (unsigned-byte 8)) 512)))
-    (socket-bind in #(127 0 0 1) listen-port)
+    (socket-bind in #(0 0 0 0) listen-port)
     (socket-connect out send-ip send-port)
     (let ((stream 
 	   (socket-make-stream
@@ -69,6 +66,9 @@
 	(when in (socket-close in)) 
  	(when out (socket-close out)))))) 
 
+
+(defun make-udp-socket()
+  (make-instance 'inet-socket :type :datagram :protocol :udp))
 
 (defun stream-t1 (osc-message stream) 
   "writes a given message to a stream. keep in mind that when using a buffered 

@@ -204,7 +204,7 @@
   #-(or sbcl cmucl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
-  (declare (type (simple-array (unsigned-byte 8) s)))
+  (declare (type (vector (unsigned-byte 8) s)))
   "4 byte > 32 bit int > two's compliment (in network byte order)"
   (let ((i (+ (ash (elt s 0) 24)
 	      (ash (elt s 1) 16)
