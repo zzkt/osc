@@ -65,6 +65,8 @@
 	   :decode-message))
 
 (in-package :osc)
+ 
+(declaim (optimize (speed 2) (safety 1)))
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
@@ -74,7 +76,7 @@
 
 (defun encode-message (address &rest data)
   "encodes an osc message with the given address and data."
-  (concatenate '(vector '(unsigned-byte 8))
+  (concatenate '(vector (unsigned-byte 8))
 	       (encode-address address)
 	       (encode-typetags data)
 	       (encode-data data)))
@@ -94,7 +96,9 @@
    f => #(102) => float
    s => #(115) => string"
 
-  (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
+  (let ((lump (make-array 0 :adjustable t 
+			  :fill-pointer t 
+			  :element-type 'char)))
     (macrolet ((write-to-vector (char)
                  `(vector-push-extend
                    (char-code ,char) lump)))
@@ -108,6 +112,7 @@
       (cat lump
            (pad (padding-length (length lump)))))))     
 		  
+
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
@@ -121,9 +126,6 @@
           (t (error "wrong type. turn back"))))
       lump)))
 
-(defun encode-string (string)
-  (cat (map 'vector #'char-code string) 
-       (pad-string string)))
 
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
@@ -134,19 +136,20 @@
 
 (defun decode-message (message)
   "reduces an osc message to an (address . data) pair. .."
+  (declare (type (vector *) message))
   (let ((x (position (char-code #\,) message)))
     (if (eq x NIL)
-        (format "message contains no data.. ")
-        (cons (decode-address (subseq message 0 x))
-              (decode-taged-data (subseq message x))))))
+        (format t "message contains no data.. ")
+	(cons (decode-address (subseq message 0 x))
+	      (decode-taged-data (subseq message x))))))
 
 (defun decode-address (address)
-  (coerce (map 'vector #'code-char (delete 0 address))
-   'string))
+  (coerce (map 'vector #'code-char 
+	       (delete 0 address))
+	  'string))
  
 (defun decode-taged-data (data)
   "decodes data encoded with typetags...
-
   NOTE: currently handles the following tags only 
    i => #(105) => int32
    f => #(102) => float
@@ -181,13 +184,6 @@
 	 tags)
     (nreverse result)))
 	
-(defun split-data (data)
-  "splits incoming data into the relevant unpadded chunks, ready for conversion .. ."
-  (loop for i = 0 then (1+ j)
-	as j = (position #\0 string :start i)
-	collect (subseq string i j)
-	while j))
-
 
 ;;;;; ; ; ;;    ;; ; ;
 ;;
@@ -208,6 +204,7 @@
   #-(or sbcl cmucl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
+ (declare (type (simple-array integer) s))
   "4 byte > 32 bit int > two's compliment (in network byte order)"
   (let ((i (+ (ash (elt s 0) 24)
 	      (ash (elt s 1) 16)
@@ -219,16 +216,19 @@
 
 (defun encode-int32 (i)
   "convert integer into a sequence of 4 bytes in network byte order."
-  (declare (type integer s))
-  (let ((buf (make-sequence '(vector (unsigned-byte 8)) 4)))
+  (declare (type integer i n))
+  (let ((buf (make-sequence 
+	      '(vector (unsigned-byte 8)) 4)))
     (macrolet ((set-byte (n)
 			 `(setf (elt buf ,n)
-				(logand #xff (ash i ,(* 8 (- n 3)))))))
+			       (logand #xff (ash i ,(* 8 (- n 3)))))))
       (set-byte 0)
       (set-byte 1)
       (set-byte 2)
       (set-byte 3))
     buf))
+
+
 
 (defun decode-string (data)
   "converts a binary vector to a string and removes trailing #\nul characters"
@@ -253,19 +253,23 @@
 
 (defun osc-string-length (string)
   "determines the length required for a padded osc string"
+  (declare (type simple-string string)) 
   (let ((n (length string)))
     (+ n (padding-length n))))
 
 (defun padding-length (s)
   "returns the length of padding required for a given length of string"
+  (declare (type fixnum s))
   (- 4 (mod s 4)))
 
 (defun pad-string (string)
   "returns the padding required for a given osc string"
+  (declare (type simple-string string)) 
   (pad (- 4 (mod (length string) 4))))
 
 (defun pad (n)
   "make a sequence of the required number of #\Nul characters"
+  (declare (type fixnum n))
   (make-array n :initial-element 0 :fill-pointer n))
 
 ;; end

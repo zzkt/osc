@@ -34,11 +34,17 @@
 (in-package :osc)
 
 ;; should probably be a clos object, and instantiated
-(defun osc-tree ()
+;; for now, a hash table is enuf.
+
+(defun make-osc-tree ()
   (make-hash-table :test 'equalp))
 
-;; lookout for leaky abstract trees.. ,
-;;   how should this be better encapsulatd??
+
+;;; ;; ;;;;;;  ;        ;  ;  ;
+;;
+;; register/delete and dispatch. .. 
+;; 
+;;;;  ; ; ;   ;; 
 
 (defun dp-register (tree address function)
   "registers a function to respond to incoming osc message. since
@@ -48,7 +54,7 @@
 	function))
 
 (defun dp-remove (tree address)
-  "removes the function associated with the given adress.."
+  "removes the function associated with the given address.."
   (remhash address tree))
 
 (defun dp-match (tree pattern)
@@ -59,7 +65,7 @@
 (defun dispatch (tree osc-message)
   "calls the function(s) matching the address(pattern) in the osc 
    message with the data contained in the message"
-  (dolist (x (dp-match tree 
-                       (car osc-message)))
-    (unless (eq x NIL)
-      (eval `(,x  ,@(cdr osc-message))))))
+  (let ((pattern (car osc-message)))
+    (dolist (x (dp-match tree pattern))
+      (unless (eq x NIL)
+        (eval `(,x  ,@(cdr osc-message)))))))
