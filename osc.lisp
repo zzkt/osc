@@ -7,8 +7,9 @@
 ;; This software is licensed under the terms of the Lisp Lesser GNU Public
 ;; License , known as the LLGPL.  The LLGPL consists of a preamble and 
 ;; the LGPL. Where these conflict, the preamble takes precedence.  The 
-;; LLGPL is available online at http://opensource.franz.com/preamble.html.
-;;
+;; LLGPL is available online at http://opensource.franz.com/preamble.html 
+;; and is distributed with this code (see: LICENCE and LGPL files)
+;; 
 ;; authors 
 ;;
 ;;  nik gaffney <nik@f0.am>
@@ -40,7 +41,7 @@
 ;;  - bundles
 ;;  - blobs
 
-;; Known BUGS
+;; known BUGS
 ;;
 ;;  - multiple arg messages containing strings can corrupt further output. .
 ;;    probably need to collect a few more testcases. .
@@ -48,10 +49,10 @@
 ;; changes
 ;;
 ;;  Sat, 18 Dec 2004 15:41:26 +0100
-;;   - initial version
+;;    - initial version, single args only
 ;;  Mon, 24 Jan 2005 15:43:20 +0100
-;;   - sends and receives multiple arguments
-;;   - tests in osc-test.lisp
+;;    - sends and receives multiple arguments
+;;    - tests in osc-test.lisp
 ;;
 
 
@@ -94,7 +95,7 @@
 	(simple-string 
 	 (vector-push-extend (char-code #\s) lump))
 	(t 
-	 (error "unrecognised datatype"))))
+	 (error "can only encode ints, floats or string"))))
     (cat lump
 	 (osc-pad (osc-padding-length (length lump))))))      
 		  
@@ -110,7 +111,7 @@
 	(simple-string 
 	 (setf lump (cat lump (encode-string x)))) 
 	(t 
-	 (error "wrong type"))))
+	 (error "wrong type. turn back"))))
     lump))
 
 (defun encode-string (string)
@@ -181,11 +182,13 @@
  
 (defun encode-float32 (f)
   "encode an ieee754 float as a 4 byte vector. currently sbcl specifc"
-  #+sbcl (encode-int32 (sb-kernel:single-float-bits f)))
+  #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
+  #-sbcl (error "cant encode floats using this implementation"))
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
   #+sbcl (sb-kernel:make-single-float (decode-int32 s)))
+  #-sbcl (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
   "4 byte > 32 bit int > two's compliment (in network byte order)"
@@ -228,8 +231,8 @@
 
 ;; utility functions for OSC slonking
 
-(defmacro cat (s &rest body)
-  `(concatenate '(vector *) ,s ,@body))
+(defun cat (&rest catatac)
+  (apply #'concatenate '(vector *) catatac))
 
 (defun osc-string-length (string)
   "determines the length required for a padded osc string"
