@@ -28,9 +28,7 @@
 ;;;;;:::;;: ;     ; ;::: ;     ;; ;;     ;        ;;      ;
 
 (require :sb-bsd-sockets)
-;(require :osc)
-
-(use-package :sb-bsd-sockets)
+(use-package :osc)
 
 (defun osc-listen (port) 
   "a basic test function which attempts to decode osc stuff a 
@@ -44,7 +42,7 @@
     (unwind-protect 
 	(loop do
 	      (socket-receive s buffer nil :waitall t)
-	      (format t "receiveded -=> ~S~%" (osc-decode-message buffer)))
+	      (format t "receiveded -=> ~S~%" (osc:decode-message buffer)))
       (when s (socket-close s))))) 
 
 
@@ -65,18 +63,24 @@
       (unwind-protect 
 	  (loop do 
 		(socket-receive in buffer nil :waitall t)
-		(let ((oscuff (osc-decode-message buffer)))
+		(let ((oscuff (osc:decode-message buffer)))
 		  (format t "glonked -=> message with ~S~% arg(s)" (length oscuff))
-		  (write-sequence (stream-t1 oscuff) stream)))
+		  (stream-t1 oscuff stream)))
 	(when in (socket-close in)) 
- 	(when out (socket-close sc)))))) 
+ 	(when out (socket-close out)))))) 
 
 
 (defun stream-t1 (osc-message stream) 
-  "writes a given message to a stream. keep in mind that when using a buffered stream 
-any funtion writing to the stream should  call (finish-output stream) after it sends
-the mesages,. ."
-  (write-sequence (osc-encode-message osc-message) stream)
+  "writes a given message to a stream. keep in mind that when using a buffered 
+   stream any funtion writing to the stream should  call (finish-output stream)
+   after it sends the mesages,. ."
+  (write-sequence 
+   (osc:encode-message "/bzzp" "got" "it" )
+   stream)
   (finish-output stream))
+
+(defmacro osc-write-to-stream (stream &body args)
+  `(progn (write-sequence (osc:encode-message ,@args) ,stream)
+	  (finish-output ,stream)))
 
 ;end

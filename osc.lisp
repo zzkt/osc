@@ -4,10 +4,11 @@
 ;;
 ;; copyright (C) 2004 FoAM vzw. 
 ;;
-;; This software is licensed under the terms of the Lisp Lesser GNU Public
-;; License , known as the LLGPL.  The LLGPL consists of a preamble and 
-;; the LGPL. Where these conflict, the preamble takes precedence.  The 
-;; LLGPL is available online at http://opensource.franz.com/preamble.html 
+;; You are granted the rights to distribute and use this software
+;; under the terms of the Lisp Lesser GNU Public License, known 
+;; as the LLGPL. The LLGPL consists of a preamble and the LGPL. 
+;; Where these conflict, the preamble takes precedence. The LLGPL
+;; is available online at http://opensource.franz.com/preamble.html 
 ;; and is distributed with this code (see: LICENCE and LGPL files)
 ;; 
 ;; authors 
@@ -21,9 +22,9 @@
 ;; commentary
 ;;
 ;;  this is a partial implementation of the OSC protocol which is used
-;;  for communicatin mostly amognst music programs and their attatched
+;;  for communication mostly amongst music programs and their attatched
 ;;  musicians. eg. sc3, max/pd, reaktor/traktorska etc+. more details 
-;;  of the procol can be found at the open sound control pages -=> 
+;;  of the protocol can be found at the open sound control pages -=> 
 ;;                     http://www.cnmat.berkeley.edu/OpenSoundControl/
 ;; 
 ;;  - currently doesnt send timetags, but does send typetags
@@ -34,26 +35,34 @@
 ;;
 ;;  - liblo like network wrapping
 ;;  - error handling
-;;  - receiver
+;;  - receiver -> osc-responder.lisp
 ;;  - osc-tree as name.value alist for responder/serve-event
 ;;  - portable en/decoding of floats -=> ieee754 tests
-;;  - (in-package 'osc)
-;;  - bundles
-;;  - blobs
+;;  - bundles, blobs, doubles and other typetags
+;;  - asdf-installable
 
 ;; known BUGS
 ;;  - only unknown for now.. .
 
 ;; changes
 ;;
-;;  Sat, 18 Dec 2004 15:41:26 +0100
+;;  2004-12-18 
 ;;    - initial version, single args only
-;;  Mon, 24 Jan 2005 15:43:20 +0100
+;;  2005-01-24 
 ;;    - sends and receives multiple arguments
 ;;    - tests in osc-test.lisp
-;;  Wed, 26 Jan 2005 16:18:36 +0100
+;;  2005-01-26 
 ;;    - fixed string handling bug
+;;  2005-02-08  
+;;    - in-package'd 
 
+(defpackage :osc
+  (:use :cl)
+  (:documentation "OSC aka the 'open sound control' protocol")
+  (:export :encode-message
+	   :decode-message))
+
+(in-package :osc)
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
@@ -61,19 +70,19 @@
 ;;
 ;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
 
-(defun osc-encode-message (address &rest data)
+(defun encode-message (address &rest data)
   "encodes an osc message with the given address and data."
   (concatenate '(vector '(unsigned-byte 8))
-	       (osc-encode-address address)
-	       (osc-encode-typetags data)
-	       (osc-encode-data data)))
+	       (encode-address address)
+	       (encode-typetags data)
+	       (encode-data data)))
 
-(defun osc-encode-address (address)
+(defun encode-address (address)
   (cat (map 'vector #'char-code address) 
-       (osc-string-padding address)))
+       (pad-string address)))
 
-(defun osc-encode-typetags (data)
-  "creates a typetag string suitable for teh given data.
+(defun encode-typetags (data)
+  "creates a typetag string suitable for the given data.
   valid typetags according to the osc spec are ,i ,f ,s and ,b
   non-std extensions include ,{h|t|d|S|c|r|m|T|F|N|I|[|]}
                              see the spec for more details. ..
@@ -96,9 +105,9 @@
 	(t 
 	 (error "can only encode ints, floats or string"))))
     (cat lump
-	 (osc-pad (osc-padding-length (length lump))))))      
+	 (pad (padding-length (length lump))))))      
 		  
-(defun osc-encode-data (data)
+(defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
     (dolist (x data) 
@@ -115,7 +124,7 @@
 
 (defun encode-string (string)
   (cat (map 'vector #'char-code string) 
-       (osc-string-padding string)))
+       (pad-string string)))
 
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
@@ -124,16 +133,17 @@
 ;;
 ;;; ;;    ;;     ; ;     ;      ;      ; ;
 
-(defun osc-decode-message (message)
-  "reduces an osc message to an (address . data) pair. .." 
+(defun decode-message (message)
+  "reduces an osc message to an (address . data) pair. .."
+  (declare (omptimize debug 3)) 
   (let ((x (position (char-code #\,) message)))
-    (cons (osc-decode-address (subseq message 0 x))
-	  (osc-decode-taged-data (subseq message x)))))
+    (cons (decode-address (subseq message 0 x))
+	  (decode-taged-data (subseq message x)))))
 
-(defun osc-decode-address (address)
+(defun decode-address (address)
   (coerce (map 'vector #'code-char address) 'string))
  
-(defun osc-decode-taged-data (data)
+(defun decode-taged-data (data)
   "decodes data encoded with typetags...
 
   NOTE: currently handles the following tags only 
@@ -159,7 +169,7 @@
 		     result)
 	       (setf acc (subseq acc 4)))
 	      ((eq x (char-code #\s))
-	       (let ((pointer (+ (osc-padding-length (position 0 acc))
+	       (let ((pointer (+ (padding-length (position 0 acc))
 				 (position 0 acc))))
 		 (push (decode-string 
 			(subseq acc 0 pointer))
@@ -170,7 +180,7 @@
 	 tags)
     (nreverse result)))
 	
-(defun osc-split-data (data)
+(defun split-data (data)
   "splits incoming data into the relevant unpadded chunks, ready for conversion .. ."
   (loop for i = 0 then (1+ j)
 	as j = (position #\0 string :start i)
@@ -219,7 +229,7 @@
 (defun encode-string (string)
   "encodes a string as a vector of character-codes, padded to 4 byte boundary"
   (cat (map 'vector #'char-code string) 
-       (osc-string-padding string)))
+       (pad-string string)))
 
 (defun decode-blob (b)
   (error "cant decode blobs for now. .."))
@@ -236,19 +246,18 @@
 (defun osc-string-length (string)
   "determines the length required for a padded osc string"
   (let ((n (length string)))
-    (+ n (osc-padding-length n))))
+    (+ n (padding-length n))))
 
-(defun osc-padding-length (s)
-  "returns the padding required for a given length of string"
+(defun padding-length (s)
+  "returns the length of padding required for a given length of string"
   (- 4 (mod s 4)))
 
-(defun osc-string-padding (string)
+(defun pad-string (string)
   "returns the padding required for a given osc string"
-  (osc-pad (- 4 (mod (length string) 4))))
+  (pad (- 4 (mod (length string) 4))))
 
-(defun osc-pad (n)
+(defun pad (n)
   "make a sequence of the required number of #\Nul characters"
   (make-array n :initial-element 0 :fill-pointer n))
-
 
 ;; end
