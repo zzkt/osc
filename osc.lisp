@@ -17,7 +17,7 @@
 ;;
 ;; requirements
 ;;
-;;  dependent on sbcl for float encoding, other suggestions welcome.
+;;  dependent on sbcl or cmucl for float encoding, other suggestions welcome.
 ;;
 ;; commentary
 ;;
@@ -57,6 +57,8 @@
 ;;    - in-package'd
 ;;  2005-03-01
 ;;    - fixed address string bug
+;;  2005-0305
+;;    - 'declare' scattering and other optimisations
 
 (defpackage :osc
   (:use :cl)
@@ -66,7 +68,7 @@
 
 (in-package :osc)
  
-(declaim (optimize (speed 2) (safety 1)))
+(declaim (optimize (speed 3) (safety 1)))
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
@@ -112,7 +114,6 @@
       (cat lump
            (pad (padding-length (length lump)))))))     
 		  
-
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
@@ -125,7 +126,6 @@
           (simple-string (enc encode-string)) 
           (t (error "wrong type. turn back"))))
       lump)))
-
 
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
@@ -164,23 +164,23 @@
     (map 'vector
 	 #'(lambda (x)
 	     (cond
-	      ((eq x (char-code #\i)) 
-	       (push (decode-int32 (subseq acc 0 4)) 
-		     result)
-	       (setf acc (subseq acc 4)))
-	      ((eq x (char-code #\f))
-	       (push (decode-float32  (subseq acc 0 4)) 
-		     result)
-	       (setf acc (subseq acc 4)))
-	      ((eq x (char-code #\s))
-	       (let ((pointer (+ (padding-length (position 0 acc))
-				 (position 0 acc))))
-		 (push (decode-string 
-			(subseq acc 0 pointer))
-		       result)
-		 (setf acc (subseq acc pointer))))
-	      ((eq x (char-code #\b)) (decode-blob x))
-	      (t  (error "unrecognised typetag"))))
+	       ((eq x (char-code #\i)) 
+		(push (decode-int32 (subseq acc 0 4)) 
+		      result)
+		(setf acc (subseq acc 4)))
+	       ((eq x (char-code #\f))
+		(push (decode-float32  (subseq acc 0 4)) 
+		      result)
+		(setf acc (subseq acc 4)))
+	       ((eq x (char-code #\s))
+		(let ((pointer (+ (padding-length (position 0 acc))
+				  (position 0 acc))))
+		  (push (decode-string 
+			 (subseq acc 0 pointer))
+			result)
+		  (setf acc (subseq acc pointer))))
+	       ((eq x (char-code #\b)) (decode-blob x))
+	       (t  (error "unrecognised typetag"))))
 	 tags)
     (nreverse result)))
 	
@@ -204,7 +204,7 @@
   #-(or sbcl cmucl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
- (declare (type (simple-array integer) s))
+  (declare (type (simple-array integer) s))
   "4 byte > 32 bit int > two's compliment (in network byte order)"
   (let ((i (+ (ash (elt s 0) 24)
 	      (ash (elt s 1) 16)
@@ -212,7 +212,7 @@
 	      (elt s 3))))
     (if (>= i #x7fffffff)
         (- 0 (- #x100000000 i))
-      i)))
+	i)))
 
 (defun encode-int32 (i)
   "convert integer into a sequence of 4 bytes in network byte order."
@@ -220,8 +220,8 @@
   (let ((buf (make-sequence 
 	      '(vector (unsigned-byte 8)) 4)))
     (macrolet ((set-byte (n)
-			 `(setf (elt buf ,n)
-			       (logand #xff (ash i ,(* 8 (- n 3)))))))
+		 `(setf (elt buf ,n)
+			(logand #xff (ash i ,(* 8 (- n 3)))))))
       (set-byte 0)
       (set-byte 1)
       (set-byte 2)
@@ -253,8 +253,9 @@
 
 (defun osc-string-length (string)
   "determines the length required for a padded osc string"
-  (declare (type simple-string string)) 
+  (declare (type simple-string string))
   (let ((n (length string)))
+    (declare (type fixnum n))
     (+ n (padding-length n))))
 
 (defun padding-length (s)
