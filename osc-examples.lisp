@@ -30,6 +30,8 @@
 (require :sb-bsd-sockets)
 ;(require :osc)
 
+(use-package :sb-bsd-sockets)
+
 (defun osc-listen (port) 
   "a basic test function which attempts to decode osc stuff a 
    given port. default ogreOSC port is 4178"

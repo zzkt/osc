@@ -16,7 +16,7 @@
 ;;
 ;; requirements
 ;;
-;;  dependent on sbcl for sb-bsd-sockets and float encoding
+;;  dependent on sbcl for float encoding, other suggestions welcome.
 ;;
 ;; commentary
 ;;
@@ -42,9 +42,7 @@
 ;;  - blobs
 
 ;; known BUGS
-;;
-;;  - multiple arg messages containing strings can corrupt further output. .
-;;    probably need to collect a few more testcases. .
+;;  - only unknown for now.. .
 
 ;; changes
 ;;
@@ -53,7 +51,8 @@
 ;;  Mon, 24 Jan 2005 15:43:20 +0100
 ;;    - sends and receives multiple arguments
 ;;    - tests in osc-test.lisp
-;;
+;;  Wed, 26 Jan 2005 16:18:36 +0100
+;;    - fixed string handling bug
 
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
@@ -160,12 +159,12 @@
 		     result)
 	       (setf acc (subseq acc 4)))
 	      ((eq x (char-code #\s))
-	       (push (decode-string 
-		      (subseq acc 0 
-			      (+ (osc-padding-length (position 0 acc))
+	       (let ((pointer (+ (osc-padding-length (position 0 acc))
 				 (position 0 acc))))
-		     result)
-	       (setf acc (subseq acc (position 0 acc))))
+		 (push (decode-string 
+			(subseq acc 0 pointer))
+		       result)
+		 (setf acc (subseq acc pointer))))
 	      ((eq x (char-code #\b)) (decode-blob x))
 	      (t  (error "unrecognised typetag"))))
 	 tags)
