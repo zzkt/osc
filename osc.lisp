@@ -34,7 +34,7 @@
 ;;  see the README file for more details...
 ;;
 ;; known BUGS
-;;  - only unknown for now.. .
+;;   - only unknown for now.. .
 
 
 (defpackage :osc

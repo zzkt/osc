@@ -17,6 +17,8 @@ more details about OSC can be found at . .,
 the current version of this code is avilable using darcs
     darcs get http://fo.am/darcs/osc 
 
+or via asdf-install.. .
+         (asdf-install:install :osc)
 
 limitations
   - doesnt send nested bundles or timetags later than 'now' 
