@@ -33,7 +33,7 @@
 
 (in-package :osc)
 
-;; should probably be a clos object, and instantiated
+;; should probably be a clos object or an alist.
 ;; for now, a hash table is enuf.
 
 (defun make-osc-tree ()

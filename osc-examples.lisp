@@ -29,19 +29,19 @@
 
 (require :sb-bsd-sockets)
 (use-package :osc)
+(use-package :sb-bsd-sockets)
+
 
 (defun osc-listen (port) 
-  "a basic test function which attempts to decode osc stuff a 
-   given port. default ogreOSC port is 4178"
-
+  "a basic test function which attempts to decode an osc message a given port."
   (let ((s (make-udp-socket))
         (buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
     (socket-bind s #(0 0 0 0) port)
     (format t "listening on localhost port ~A~%~%" port)
     (unwind-protect 
 	(loop do
-	      (socket-receive s buffer nil :waitall t)
-	      (format t "receiveded -=> ~S~%" (osc:decode-message buffer)))
+	      (socket-receive s buffer nil)
+	      (format t "receiveded -=> ~S~%" (osc:decode-bundle buffer)))
       (when s (socket-close s))))) 
 
 
@@ -59,10 +59,10 @@
 	    :element-type '(unsigned-byte 8) :buffering :full)))
       (unwind-protect 
 	  (loop do 
-		(socket-receive in buffer nil :waitall t)
-		(let ((oscuff (osc:decode-message buffer)))
+		(socket-receive in buffer nil)
+		(let ((oscuff (osc:decode-bundle buffer)))
 		  (format t "glonked -=> message with ~S~% arg(s)" (length oscuff))
-		  (stream-t1 oscuff stream)))
+		  (write-stream-t1 oscuff stream)))
 	(when in (socket-close in)) 
  	(when out (socket-close out)))))) 
 
@@ -70,7 +70,7 @@
 (defun make-udp-socket()
   (make-instance 'inet-socket :type :datagram :protocol :udp))
 
-(defun stream-t1 (osc-message stream) 
+(defun write-stream-t1 (osc-message stream) 
   "writes a given message to a stream. keep in mind that when using a buffered 
    stream any funtion writing to the stream should  call (finish-output stream)
    after it sends the mesages,. ."
