@@ -187,7 +187,7 @@
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
-  #+sbcl (sb-kernel:make-single-float (decode-int32 s)))
+  #+sbcl (sb-kernel:make-single-float (decode-int32 s))
   #-sbcl (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
