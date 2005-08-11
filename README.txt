@@ -22,7 +22,7 @@ or via asdf-install.. .
 
 limitations
   - doesnt send nested bundles or timetags later than 'now' 
-  - will most likely crash if the input is malformed
+  - will raise an exception if the input is malformed
   - doesnt do any pattern matching on addresses
   - sbcl/cmucl specific float en/decoding 
   - only supports the type(tag)s specified in the OSC spec
@@ -34,11 +34,11 @@ things to do
   - portable en/decoding of floats -=> ieee754 tests
   - doubles and other defacto typetags
   - correct en/decoding of timetags
-  - asdf-installable
 
 
 changes
-
+  2005-03-16
+     - packaged as an asdf installable lump
   2005-03-11
      - bundle and blob en/de- coding
   2005-03-05

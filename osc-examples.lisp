@@ -13,8 +13,10 @@
 ;;
 ;; Commentry
 ;;
-;;  These examples are currently sbcl specific (ports welcome!)
-;;  but should still be able to explain enough to get started. .. 
+;;  These examples are currently sbcl specific [as is the float code],
+;;  but should be easily modifyable to work with trivial-sockets, or
+;;  something similar for portablity. these examples should still be
+;;  able to explain enough to get you started. ..
 ;;
 ;;  eg. listen on port 6667 for incoming msgs 
 ;;
@@ -62,7 +64,7 @@
 		(socket-receive in buffer nil)
 		(let ((oscuff (osc:decode-bundle buffer)))
 		  (format t "glonked -=> message with ~S~% arg(s)" (length oscuff))
-		  (write-stream-t1 oscuff stream)))
+		  (write-stream-t1 stream oscuff)))
 	(when in (socket-close in)) 
  	(when out (socket-close out)))))) 
 
@@ -70,7 +72,7 @@
 (defun make-udp-socket()
   (make-instance 'inet-socket :type :datagram :protocol :udp))
 
-(defun write-stream-t1 (osc-message stream) 
+(defun write-stream-t1 (stream osc-message) 
   "writes a given message to a stream. keep in mind that when using a buffered 
    stream any funtion writing to the stream should  call (finish-output stream)
    after it sends the mesages,. ."

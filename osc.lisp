@@ -28,8 +28,9 @@
 ;;                     http://www.cnmat.berkeley.edu/OpenSoundControl/
 ;; 
 ;;   - doesnt send nested bundles or timetags later than 'now' 
-;;   - will most likely crash if the input is malformed
+;;   - malformed input -> exception
 ;;   - int32 en/de-coding based on code (c) Walter C. Pelissero
+;;   - unknown types are sent as 'blobs' which may or may not be an issue
 ;;
 ;;  see the README file for more details...
 ;;
@@ -90,7 +91,8 @@
    i => #(105) => int32
    f => #(102) => float
    s => #(115) => string 
-   b => #(98)  => blob" 
+   b => #(98)  => blob
+  and considers non int/float/string data to be a blob." 
 
   (let ((lump (make-array 0 :adjustable t 
 			  :fill-pointer t 
@@ -104,10 +106,9 @@
           (integer (write-to-vector #\i))
           (float (write-to-vector #\f))
           (simple-string (write-to-vector #\s))
-	  (simple-vector (write-to-vector #\b))
-          (t (error "can only encode ints, floats or strings"))))
+	  (t (write-to-vector #\b)))))
       (cat lump
-           (pad (padding-length (length lump)))))))     
+           (pad (padding-length (length lump))))))     
 		  
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
@@ -119,8 +120,7 @@
           (integer (enc encode-int32)) 
           (float (enc encode-float32)) 
           (simple-string (enc encode-string))
-	  (simple-vector (enc encode-blob))
-          (t (error "wrong type. turn back"))))
+	  (t (enc encode-blob))))
       lump)))
 
 
@@ -197,11 +197,11 @@
 			 result)
 		   (setf acc (subseq acc pointer))))
 		((eq x (char-code #\b)) 
-		 (let ((size (decode-int32 (subseq acc 0 4))))
-		   (let ((end (padded-length (+ 4 size))))
-		     (push (decode-blob (subseq acc 0 end)) 
-			   result)
-		     (setf acc (subseq acc end)))))
+		 (let* ((size (decode-int32 (subseq acc 0 4)))
+                        (end (padded-length (+ 4 size))))
+                   (push (decode-blob (subseq acc 0 end)) 
+                         result)
+                   (setf acc (subseq acc end))))
 		(t  (error "unrecognised typetag"))))
 	   tags)
       (nreverse result))))
@@ -323,7 +323,7 @@
   (+ s (- 4 (mod s 4))))
 
 (defun string-padding (string)
-  "returns the padding required for a given osc string"
+q  "returns the padding required for a given osc string"
   (declare (type simple-string string)) 
   (pad (- 4 (mod (length string) 4))))
 
