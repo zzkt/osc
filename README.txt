@@ -1,4 +1,5 @@
 
+Open Sound Control
 
 This is a common-lisp implementation of the Open Sound Control
 Protocol, aka OSC. The code should be close to ansi standard, and does
@@ -27,16 +28,23 @@ limitations
   - sbcl/cmucl specific float en/decoding 
   - only supports the type(tag)s specified in the OSC spec
 
-things to do
+things to do in :osc
   - address patterns
-  - liblo like network wrapping 
   - data checking and error handling
   - portable en/decoding of floats -=> ieee754 tests
   - doubles and other defacto typetags
   - correct en/decoding of timetags
 
+things to do in :osc-ex[tensions|tras]
+  - liblo like network wrapping 
+  - add namespace exploration using cl-zeroconf
+
 
 changes
+  2005-08-12
+     - corrections from Matthew Kennedy <mkennedy@gentoo.org>
+  2005-08-11
+     - version 0.1
   2005-03-16
      - packaged as an asdf installable lump
   2005-03-11

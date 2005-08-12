@@ -96,7 +96,7 @@
 
   (let ((lump (make-array 0 :adjustable t 
 			  :fill-pointer t 
-			  :element-type 'char)))
+			  :element-type 'character)))
     (macrolet ((write-to-vector (char)
                  `(vector-push-extend
                    (char-code ,char) lump)))
@@ -229,7 +229,7 @@
   (if (equalp ut :now)
       #(0 0 0 0 0 0 0 1)
       (cat (encode-int32 (+ ut +unix-epoch+))
-	   (encode-int32 (subseconds)))))
+	   (encode-int32 subseconds))))
 
 (defun decode-timetag (timetag)
   "decomposes a timetag into ut and a subsecond,. . ."
@@ -268,7 +268,7 @@
 
 (defun encode-int32 (i)
   "convert integer into a sequence of 4 bytes in network byte order."
-  (declare (type integer i n))
+  (declare (type integer i))
   (let ((buf (make-sequence 
 	      '(vector (unsigned-byte 8)) 4)))
     (macrolet ((set-byte (n)
@@ -323,7 +323,7 @@
   (+ s (- 4 (mod s 4))))
 
 (defun string-padding (string)
-q  "returns the padding required for a given osc string"
+  "returns the padding required for a given osc string"
   (declare (type simple-string string)) 
   (pad (- 4 (mod (length string) 4))))
 
