@@ -1,41 +1,42 @@
-;; -*- mode: lisp -*-
-;;
-;; an implementation of the OSC (Open Sound Control) protocol
-;;
-;; copyright (C) 2004 FoAM vzw. 
-;;
-;; You are granted the rights to distribute and use this software
-;; under the terms of the Lisp Lesser GNU Public License, known 
-;; as the LLGPL. The LLGPL consists of a preamble and the LGPL. 
-;; Where these conflict, the preamble takes precedence. The LLGPL
-;; is available online at http://opensource.franz.com/preamble.html 
-;; and is distributed with this code (see: LICENCE and LGPL files)
-;;
-;; authors 
-;;
-;;  nik gaffney <nik@f0.am>
-;;
-;; requirements
-;;
-;;  dependent on sbcl or cmucl for float encoding, other suggestions welcome.
-;;
-;; commentary
-;;
-;;  this is a partial implementation of the OSC protocol which is used
-;;  for communication mostly amongst music programs and their attatched
-;;  musicians. eg. sc3, max/pd, reaktor/traktorska etc+. more details 
-;;  of the protocol can be found at the open sound control pages -=> 
-;;                     http://www.cnmat.berkeley.edu/OpenSoundControl/
-;; 
-;;   - doesnt send nested bundles or timetags later than 'now' 
-;;   - malformed input -> exception
-;;   - int32 en/de-coding based on code (c) Walter C. Pelissero
-;;   - unknown types are sent as 'blobs' which may or may not be an issue
-;;
-;;  see the README file for more details...
-;;
-;; known BUGS
-;;   - only unknown for now.. .
+;;; -*- mode: lisp -*-
+;;;
+;;; an implementation of the OSC (Open Sound Control) protocol
+;;;
+;;; copyright (C) 2004 FoAM vzw. 
+;;;
+;;; You are granted the rights to distribute and use this software
+;;; under the terms of the Lisp Lesser GNU Public License, known 
+;;; as the LLGPL. The LLGPL consists of a preamble and the LGPL. 
+;;; Where these conflict, the preamble takes precedence. The LLGPL
+;;; is available online at http://opensource.franz.com/preamble.html 
+;;; and is distributed with this code (see: LICENCE and LGPL files)
+;;;
+;;; authors 
+;;;
+;;;  nik gaffney <nik@f0.am>
+;;;
+;;; requirements
+;;;
+;;;  dependent on sbcl, cmucl or openmcl for float encoding, other suggestions
+;;;  welcome. 
+;;;
+;;; commentary
+;;;
+;;;  this is a partial implementation of the OSC protocol which is used
+;;;  for communication mostly amongst music programs and their attatched
+;;;  musicians. eg. sc3, max/pd, reaktor/traktorska etc+. more details 
+;;;  of the protocol can be found at the open sound control pages -=> 
+;;;                     http://www.cnmat.berkeley.edu/OpenSoundControl/
+;;; 
+;;;   - doesnt send nested bundles or timetags later than 'now' 
+;;;   - malformed input -> exception
+;;;   - int32 en/de-coding based on code (c) Walter C. Pelissero
+;;;   - unknown types are sent as 'blobs' which may or may not be an issue
+;;;
+;;;  see the README file for more details...
+;;;
+;;; known BUGS
+;;;   - only unknown for now.. .
 
 
 (defpackage :osc
@@ -54,7 +55,7 @@
 ;; 
 ;;   eNcoding OSC messages
 ;;
-;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
+;;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
 
 
 (defun encode-bundle (data)
@@ -95,8 +96,7 @@
   and considers non int/float/string data to be a blob." 
 
   (let ((lump (make-array 0 :adjustable t 
-			  :fill-pointer t 
-			  :element-type 'character)))
+			  :fill-pointer t)))
     (macrolet ((write-to-vector (char)
                  `(vector-push-extend
                    (char-code ,char) lump)))
@@ -107,8 +107,8 @@
           (float (write-to-vector #\f))
           (simple-string (write-to-vector #\s))
 	  (t (write-to-vector #\b)))))
-      (cat lump
-           (pad (padding-length (length lump))))))     
+    (cat lump
+         (pad (padding-length (length lump))))))     
 		  
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
@@ -207,7 +207,7 @@
       (nreverse result))))
 
 
-;;; ; ;; ;
+;;;;;; ;; ;; ; ; ;  ;  ; ;;     ;
 ;;	
 ;; timetags
 ;;
@@ -243,21 +243,26 @@
 ;; dataformat en- de- cetera.
 ;;
 ;;; ;; ;   ;  ;
- 
+
+;; floats are encoded using implementation specific 'internals' which is not
+;; particulaly portable, but 'works for now'. 
+
 (defun encode-float32 (f)
   "encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specifc"
   #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
   #+cmucl (encode-int32 (kernel:single-float-bits f))
-  #-(or sbcl cmucl) (error "cant encode floats using this implementation"))
+  #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
+  #-(or sbcl cmucl openmcl) (error "cant encode floats using this implementation"))
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
   #+sbcl (sb-kernel:make-single-float (decode-int32 s))
   #+cmucl (kernel:make-single-float (decode-int32 s))
-  #-(or sbcl cmucl) (error "cant decode floats using this implementation"))
+  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-int32 s))
+  #-(or sbcl cmucl openmcl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
-  "4 byte > 32 bit int > two's compliment (in network byte order)"
+  "4 byte -> 32 bit int -> two's compliment (in network byte order)"
   (let ((i (+ (ash (elt s 0) 24)
 	      (ash (elt s 1) 16)
 	      (ash (elt s 2) 8)
@@ -267,7 +272,7 @@
 	i)))
 
 (defun encode-int32 (i)
-  "convert integer into a sequence of 4 bytes in network byte order."
+  "convert an integer into a sequence of 4 bytes in network byte order."
   (declare (type integer i))
   (let ((buf (make-sequence 
 	      '(vector (unsigned-byte 8)) 4)))
@@ -325,7 +330,7 @@
 (defun string-padding (string)
   "returns the padding required for a given osc string"
   (declare (type simple-string string)) 
-  (pad (- 4 (mod (length string) 4))))
+  (pad (padding-length (length string))))
 
 (defun pad (n)
   "make a sequence of the required number of #\Nul characters"

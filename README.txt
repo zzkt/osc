@@ -1,4 +1,5 @@
 
+
 Open Sound Control
 
 This is a common-lisp implementation of the Open Sound Control
@@ -25,7 +26,7 @@ limitations
   - doesnt send nested bundles or timetags later than 'now' 
   - will raise an exception if the input is malformed
   - doesnt do any pattern matching on addresses
-  - sbcl/cmucl specific float en/decoding 
+  - sbcl/cmucl/openmcl specific float en/decoding 
   - only supports the type(tag)s specified in the OSC spec
 
 things to do in :osc
@@ -41,6 +42,9 @@ things to do in :osc-ex[tensions|tras]
 
 
 changes
+  2005-11-29 
+     - version 0.2
+     - openmcl float en/decoding
   2005-08-12
      - corrections from Matthew Kennedy <mkennedy@gentoo.org>
   2005-08-11
