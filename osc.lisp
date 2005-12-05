@@ -258,7 +258,7 @@
   "ieee754 float from a vector of 4 bytes in network byte order"
   #+sbcl (sb-kernel:make-single-float (decode-int32 s))
   #+cmucl (kernel:make-single-float (decode-int32 s))
-  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-int32 s))
+  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 s))
   #-(or sbcl cmucl openmcl) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
@@ -270,6 +270,14 @@
     (if (>= i #x7fffffff)
         (- 0 (- #x100000000 i))
 	i)))
+
+(defun decode-uint32 (s)
+  "4 byte -> 32 bit unsigned int"
+  (let ((i (+ (ash (elt s 0) 24)
+	      (ash (elt s 1) 16)
+	      (ash (elt s 2) 8)
+	      (elt s 3))))
+    i))
 
 (defun encode-int32 (i)
   "convert an integer into a sequence of 4 bytes in network byte order."

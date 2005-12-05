@@ -42,6 +42,9 @@ things to do in :osc-ex[tensions|tras]
 
 
 changes
+  2005-12-05
+     - version 0.3
+     - fixed openmcl float bug (decode-uint32)
   2005-11-29 
      - version 0.2
      - openmcl float en/decoding
