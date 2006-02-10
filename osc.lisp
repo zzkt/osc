@@ -36,8 +36,9 @@
 ;;;  see the README file for more details...
 ;;;
 ;;; known BUGS
-;;;   - only unknown for now.. .
-
+;;;   - encoding a :symbol which is unbound, or has no symbol-value will cause
+;;;     an error
+;;;
 
 (defpackage :osc
   (:use :cl)
@@ -49,7 +50,7 @@
 
 (in-package :osc)
  
-;(declaim (optimize (speed 3) (safety 1)))
+;(declaim (optimize (speed 3) (safety 1) (debug 3)))
 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
@@ -57,12 +58,14 @@
 ;;
 ;;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
 
-
-(defun encode-bundle (data)
+(defun encode-bundle (data &optional timetag)
   "will encode an osc message, or list of messages as a bundle
-   with an optional timetag. doesnt handle nested bundles"
+   with an optional timetag (symbol or 64bit int).
+   doesnt handle nested bundles"
   (cat '(35 98 117 110 100 108 101 0)	; #bundle
-       (encode-timetag :now)
+       (if timetag
+           (encode-timetag timetag)
+           (encode-timetag :now))
        (if (listp (car data))
 	   (apply #'cat (mapcar #'encode-bundle-elt data))
 	 (encode-bundle-elt data))))
@@ -123,14 +126,12 @@
 	  (t (enc encode-blob))))
       lump)))
 
-
                 
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
 ;;    decoding OSC messages
 ;;
 ;;; ;;    ;;     ; ;     ;      ;      ; ;
-
 
 (defun decode-bundle (data)
   "decodes an osc bundle into a list of decoded-messages, which has
@@ -202,7 +203,7 @@
                    (push (decode-blob (subseq acc 0 end)) 
                          result)
                    (setf acc (subseq acc end))))
-		(t  (error "unrecognised typetag"))))
+		(t (error "unrecognised typetag"))))
 	   tags)
       (nreverse result))))
 
@@ -211,32 +212,45 @@
 ;;	
 ;; timetags
 ;;
-;; - not yet, but probably something using
-;; (get-universal-time)  >  see also: CLHS 25.1.4 Time
-;;   or connecting to an ntp server.,.  - ntpdate, ntpq
+;; - timetags can be encoded using a value, or the :now and :time keywords. the
+;;   keywords enable either a tag indicating 'immediate' execution, or
+;;   a tag containing the current time (which will most likely be in the past
+;;   of anyt receiver) to be created.
 ;;
-;; - begin with bundles using 'now' as the timetag
-;; - this should really handle 64bit fixed ints,
-;;   not signed 32bit ints
+;; - note: not well tested, and probably not accurate enough for syncronisation.
+;;   see also: CLHS 25.1.4 Time, and the ntp timestamp format. also needs to
+;;   convert from 2 32bit ints to 64bit fixed point value.
 ;;
 ;;;; ;; ; ; 
 
 (defconstant +unix-epoch+ (encode-universal-time 0 0 0 1 1 1970 0))
 
-(defun encode-timetag (ut &optional subseconds)
-  "encodes an osc timetag from a universal-time and 32bit 'sub-second' part
-   for an 'instantaneous' timetag use (encode-timetag :now) "
-  (if (equalp ut :now)
-      #(0 0 0 0 0 0 0 1)
-      (cat (encode-int32 (+ ut +unix-epoch+))
-	   (encode-int32 subseconds))))
+(defun encode-timetag (utime &optional subseconds)
+  "encodes an osc timetag from a universal-time and 32bit 'sub-second' part.
+   for an 'instantaneous' timetag use (encode-timetag :now) 
+   for a timetag with the current time use (encode-timetag :time)"
+  (cond
+    ;; a 1bit timetag will be interpreted as 'imediatly' 
+    ((equalp utime :now)
+     #(0 0 0 0 0 0 0 1)) 
+    ;; converts seconds since 19000101 to seconds since 19700101
+    ;; note: fractions of a second is accurate, but not syncronised.
+    ((equalp utime :time)
+     (cat (encode-int32 (- (get-universal-time) +unix-epoch+))
+          (encode-int32 
+           (round (* 1000 (second (multiple-value-list  
+                           (floor (/ (get-internal-real-time) 
+                                     internal-time-units-per-second)))))))))
+    ((integerp utime)
+     (cat (encode-int32 (+ utime +unix-epoch+))
+          (encode-int32 subseconds)))
+    (t (error "the time or subsecond given is not an integer"))))
 
 (defun decode-timetag (timetag)
-  "decomposes a timetag into ut and a subsecond,. . ."
+  "decomposes a timetag into unix-time and a subsecond,. . ."
   (list
    (decode-int32 (subseq timetag 0 4))
    (decode-int32 (subseq timetag 4 8))))
-
 
 ;;;;; ; ; ;;    ;; ; ;
 ;;

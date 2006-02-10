@@ -30,7 +30,7 @@ limitations
   - only supports the type(tag)s specified in the OSC spec
 
 things to do in :osc
-  - address patterns
+  - address patterns using pcre
   - data checking and error handling
   - portable en/decoding of floats -=> ieee754 tests
   - doubles and other defacto typetags
@@ -42,6 +42,9 @@ things to do in :osc-ex[tensions|tras]
 
 
 changes
+  2006-02-11
+     - version 0.4
+     - partial timetag implemetation 
   2005-12-05
      - version 0.3
      - fixed openmcl float bug (decode-uint32)

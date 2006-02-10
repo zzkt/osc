@@ -13,9 +13,8 @@
 ;;
 ;; Commentry
 ;;
-;;  These examples are currently sbcl specific [as is the float code],
-;;  but should be easily modifyable to work with trivial-sockets, or
-;;  something similar for portablity. these examples should still be
+;;  These examples are currently sbcl specific, but should be easily ported to
+;;  work with trivial-sockets, acl-compat or something similar. They should be
 ;;  able to explain enough to get you started. ..
 ;;
 ;;  eg. listen on port 6667 for incoming msgs 
