@@ -238,9 +238,10 @@
     ((equalp utime :time)
      (cat (encode-int32 (- (get-universal-time) +unix-epoch+))
           (encode-int32 
-           (round (* 1000 (second (multiple-value-list  
-                           (floor (/ (get-internal-real-time) 
-                                     internal-time-units-per-second)))))))))
+           (round (* internal-time-units-per-second
+                     (second (multiple-value-list  
+                              (floor (/ (get-internal-real-time) 
+                                        internal-time-units-per-second)))))))))
     ((integerp utime)
      (cat (encode-int32 (+ utime +unix-epoch+))
           (encode-int32 subseconds)))
