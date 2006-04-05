@@ -21,7 +21,7 @@ or via asdf-install.. .
          (asdf-install:install :osc)
 
 limitations
-  - doesnt send nested bundles or timetags later than 'now' 
+  - doesnt send nested bundles or syncronisable timetags
   - will raise an exception if the input is malformed
   - doesnt do any pattern matching on addresses
   - sbcl/cmucl/openmcl specific float en/decoding 
