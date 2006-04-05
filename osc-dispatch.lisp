@@ -68,5 +68,5 @@
   (let ((pattern (car osc-message)))
     (dolist (x (dp-match tree pattern))
       (unless (eq x NIL)
-        ;; (apply #'x '() (cdr osc-message))
-        (eval `(,x  ,@(cdr osc-message)))))))
+        (apply #'x (cdr osc-message))))))
+

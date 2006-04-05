@@ -360,4 +360,6 @@
   (declare (type fixnum n))
   (make-array n :initial-element 0 :fill-pointer n))
 
+
+(provide :osc)
 ;; end
