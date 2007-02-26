@@ -221,6 +221,9 @@
 ;;   see also: CLHS 25.1.4 Time, and the ntp timestamp format. also needs to
 ;;   convert from 2 32bit ints to 64bit fixed point value.
 ;;
+;; - see this c.l.l thread to sync universal-time and internal-time
+;;   http://groups.google.com/group/comp.lang.lisp/browse_thread/thread/c207fef63a78d720/adc7442d2e4de5a0?lnk=gst&q=internal-real-time-sync&rnum=1#adc7442d2e4de5a0
+;;
 ;;;; ;; ; ; 
 
 (defconstant +unix-epoch+ (encode-universal-time 0 0 0 1 1 1970 0))
@@ -230,7 +233,7 @@
    for an 'instantaneous' timetag use (encode-timetag :now) 
    for a timetag with the current time use (encode-timetag :time)"
   (cond
-    ;; a 1bit timetag will be interpreted as 'imediatly' 
+    ;; a 1bit timetag will be interpreted as 'imediately' 
     ((equalp utime :now)
      #(0 0 0 0 0 0 0 1)) 
     ;; converts seconds since 19000101 to seconds since 19700101
@@ -253,6 +256,7 @@
    (decode-int32 (subseq timetag 0 4))
    (decode-int32 (subseq timetag 4 8))))
 
+
 ;;;;; ; ; ;;    ;; ; ;
 ;;
 ;; dataformat en- de- cetera.
@@ -267,14 +271,18 @@
   #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
   #+cmucl (encode-int32 (kernel:single-float-bits f))
   #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
-  #-(or sbcl cmucl openmcl) (error "cant encode floats using this implementation"))
+  #+allegro (encode-int32 (multiple-value-bind (x y) (excl:single-float-to-shorts f)
+			    (+ (ash x 16) y)))
+  #-(or sbcl cmucl openmcl allegro) (error "cant encode floats using this implementation"))
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
   #+sbcl (sb-kernel:make-single-float (decode-int32 s))
   #+cmucl (kernel:make-single-float (decode-int32 s))
   #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 s))
-  #-(or sbcl cmucl openmcl) (error "cant decode floats using this implementation"))
+  #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-int32 s))
+				    (ldb (byte 16 0) (decode-int32 s)))
+  #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's compliment (in network byte order)"
@@ -334,7 +342,6 @@
     (cat (encode-int32 bl) blob
 	 (pad (padding-length bl)))))      
 
-
 ;; utility functions for osc-string/padding slonking
 
 (defun cat (&rest catatac)
@@ -359,7 +366,6 @@
   "make a sequence of the required number of #\Nul characters"
   (declare (type fixnum n))
   (make-array n :initial-element 0 :fill-pointer n))
-
 
 (provide :osc)
 ;; end

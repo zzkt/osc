@@ -40,6 +40,9 @@ things to do in :osc-ex[tensions|tras]
 
 
 changes
+  2007-02-20
+     - version 0.5
+     - Allegro CL float en/decoding from vincent akkermans <vincent.akkermans@gmail.com> 
   2006-02-11
      - version 0.4
      - partial timetag implemetation 
