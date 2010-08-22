@@ -157,8 +157,8 @@ not contain stale data."
 			     (subseq data mark (+ mark size)))
 			    contents))
 		  (incf i (+ 4 size))))
-	  (push timetag contents))
-	(decode-message data))))
+	  (values (car contents) (decode-timetag timetag)))
+	(values (decode-message data) nil))))
      
 (defun decode-message (message)
   "reduces an osc message to an (address . data) pair. .." 
