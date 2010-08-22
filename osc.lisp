@@ -135,7 +135,7 @@
 
 (defun decode-bundle (data &optional bundle-length)
   "Decodes an osc bundle into a list of decoded-messages, which has an
-osc-timetagas its first element. An optional buffer-length argument
+osc-timetag as its first element. An optional buffer-length argument
 can be supplied (i.e. the length value returned by socket-receive),
 otherwise the entire buffer is decoded - in which case, if you are
 reusing buffers, you are responsible for ensuring that the buffer does
@@ -143,8 +143,9 @@ not contain stale data."
   (unless bundle-length
     (setf bundle-length (length data)))
   (let ((contents '()))
-    (if (equalp 35 (elt data 0))	; a bundle begins with '#'
-	(let ((timetag (subseq data 8 16)) 
+    (if (equalp 35 (elt data 0))	; a bundle begins with
+					; '#bundle' (8 bytes)
+	(let ((timetag (subseq data 8 16)) ; bytes 8-15 are timestamp
 	      (i 16))
 	  (loop while (< i bundle-length)
 	     do (let ((mark (+ i 4))
