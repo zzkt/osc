@@ -351,7 +351,7 @@ not contain stale data."
 ;; utility functions for osc-string/padding slonking
 
 (defun cat (&rest catatac)
-  (apply #'concatenate '(vector *) catatac))
+  (apply #'concatenate '(vector (unsigned-byte 8)) catatac))
 
 (defun padding-length (s)
   "returns the length of padding required for a given length of string"
