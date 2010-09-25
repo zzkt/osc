@@ -40,14 +40,6 @@
 ;;;     an error
 ;;;
 
-(defpackage :osc
-  (:use :cl)
-  (:documentation "OSC aka the 'open sound control' protocol")
-  (:export :encode-message
-	   :encode-bundle
-	   :decode-message
-	   :decode-bundle))
-
 (in-package :osc)
  
 ;(declaim (optimize (speed 3) (safety 1) (debug 3)))
@@ -112,7 +104,7 @@
 	  (t (write-to-vector #\b)))))
     (cat lump
          (pad (padding-length (length lump))))))     
-		  
+
 (defun encode-data (data)
   "encodes data in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
@@ -126,7 +118,7 @@
 	  (t (enc encode-blob))))
       lump)))
 
-                
+
 ;;;;;; ;    ;;    ;     ; ;     ; ; ;         ;
 ;; 
 ;;    decoding OSC messages
@@ -218,50 +210,45 @@ not contain stale data."
 ;;	
 ;; timetags
 ;;
-;; - timetags can be encoded using a value, or the :now and :time keywords. the
-;;   keywords enable either a tag indicating 'immediate' execution, or
-;;   a tag containing the current time (which will most likely be in the past
-;;   of anyt receiver) to be created.
-;;
-;; - note: not well tested, and probably not accurate enough for syncronisation.
-;;   see also: CLHS 25.1.4 Time, and the ntp timestamp format. also needs to
-;;   convert from 2 32bit ints to 64bit fixed point value.
+;; - timetags can be encoded using a value, or the :now and :time
+;;   keywords. the keywords enable either a tag indicating 'immediate'
+;;   execution, or a tag containing the current time (which will most
+;;   likely be in the past of any receiver) to be created.
 ;;
 ;; - see this c.l.l thread to sync universal-time and internal-time
 ;;   http://groups.google.com/group/comp.lang.lisp/browse_thread/thread/c207fef63a78d720/adc7442d2e4de5a0?lnk=gst&q=internal-real-time-sync&rnum=1#adc7442d2e4de5a0
+
+;; - In SBCL, using sb-ext:get-time-of-day to get accurate seconds and
+;;   microseconds from OS.
 ;;
 ;;;; ;; ; ; 
 
-(defconstant +unix-epoch+ (encode-universal-time 0 0 0 1 1 1970 0))
-
-(defun encode-timetag (utime &optional subseconds)
-  "encodes an osc timetag from a universal-time and 32bit 'sub-second' part.
-   for an 'instantaneous' timetag use (encode-timetag :now) 
-   for a timetag with the current time use (encode-timetag :time)"
+(defun encode-timetag (timetag)
+  "From the spec: `Time tags are represented by a 64 bit fixed point
+number. The first 32 bits specify the number of seconds since midnight
+on January 1, 1900, and the last 32 bits specify fractional parts of a
+second to a precision of about 200 picoseconds. This is the
+representation used by Internet NTP timestamps'. For an
+'instantaneous' timetag use (encode-timetag :now), and for a timetag
+with the current time use (encode-timetag :time)."
   (cond
-    ;; a 1bit timetag will be interpreted as 'imediately' 
-    ((equalp utime :now)
-     #(0 0 0 0 0 0 0 1)) 
-    ;; converts seconds since 19000101 to seconds since 19700101
-    ;; note: fractions of a second is accurate, but not syncronised.
-    ((equalp utime :time)
-     (cat (encode-int32 (- (get-universal-time) +unix-epoch+))
-          (encode-int32 
-           (round (* internal-time-units-per-second
-                     (second (multiple-value-list  
-                              (floor (/ (get-internal-real-time) 
-                                        internal-time-units-per-second)))))))))
-    ((integerp utime)
-     (cat (encode-int32 (+ utime +unix-epoch+))
-          (encode-int32 subseconds)))
-    (t (error "the time or subsecond given is not an integer"))))
+    ((equalp timetag :now)
+     ;; a 1 bit timetag will be interpreted as 'immediately'
+     #(0 0 0 0 0 0 0 1))
+    ((equalp timetag :time)
+     ;; encode timetag with current real time
+     (encode-int64 (get-current-timetag)))
+    ((timetagp timetag)
+       ;; encode osc timetag
+     (encode-int64 timetag))
+    (t (error "Argument given is not one of :now, :time, or timetagp."))))
 
 (defun decode-timetag (timetag)
-  "decomposes a timetag into unix-time and a subsecond,. . ."
-  (list
-   (decode-int32 (subseq timetag 0 4))
-   (decode-int32 (subseq timetag 4 8))))
-
+  "Return a 64 bit timetag from a vector of 8 bytes in network byte
+  order."
+  (if (equalp timetag #(0 0 0 0 0 0 0 1))
+      1 ; A timetag of 1 is defined as immediately.
+      (decode-uint64 timetag)))
 
 ;;;;; ; ; ;;    ;; ; ;
 ;;
@@ -290,6 +277,20 @@ not contain stale data."
 				    (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
+(defun encode-int32 (i)
+  "convert an integer into a sequence of 4 bytes in network byte order."
+  (declare (type integer i))
+  (let ((buf (make-sequence
+	      '(vector (unsigned-byte 8)) 4)))
+    (macrolet ((set-byte (n)
+		 `(setf (elt buf ,n)
+			(logand #xff (ash i ,(* 8 (- n 3)))))))
+      (set-byte 0)
+      (set-byte 1)
+      (set-byte 2)
+      (set-byte 3))
+    buf))
+
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's compliment (in network byte order)"
   (let ((i (+ (ash (elt s 0) 24)
@@ -308,45 +309,61 @@ not contain stale data."
 	      (elt s 3))))
     i))
 
-(defun encode-int32 (i)
-  "convert an integer into a sequence of 4 bytes in network byte order."
+(defun encode-int64 (i)
+  "convert an integer into a sequence of 8 bytes in network byte order."
   (declare (type integer i))
-  (let ((buf (make-sequence 
-	      '(vector (unsigned-byte 8)) 4)))
+  (let ((buf (make-sequence
+	      '(vector (unsigned-byte 8)) 8)))
     (macrolet ((set-byte (n)
 		 `(setf (elt buf ,n)
-			(logand #xff (ash i ,(* 8 (- n 3)))))))
+			(logand #xff (ash i ,(* 8 (- n 7)))))))
       (set-byte 0)
       (set-byte 1)
       (set-byte 2)
-      (set-byte 3))
+      (set-byte 3)
+      (set-byte 4)
+      (set-byte 5)
+      (set-byte 6)
+      (set-byte 7))
     buf))
 
-;; osc-strings are unsigned bytes, padded to a 4 byte boundary 
+(defun decode-uint64 (s)
+  "8 byte -> 64 bit unsigned int"
+  (let ((i (+ (ash (elt s 0) 56)
+	      (ash (elt s 1) 48)
+	      (ash (elt s 2) 40)
+	      (ash (elt s 3) 32)
+	      (ash (elt s 4) 24)
+	      (ash (elt s 5) 16)
+	      (ash (elt s 6) 8)
+	      (elt s 7))))
+    i))
 
-(defun decode-string (data)
-  "converts a binary vector to a string and removes trailing #\nul characters"
-  (string-trim '(#\nul) (coerce (map 'vector #'code-char data) 'string)))
+;; osc-strings are unsigned bytes, padded to a 4 byte boundary 
 
 (defun encode-string (string)
   "encodes a string as a vector of character-codes, padded to 4 byte boundary"
   (cat (map 'vector #'char-code string) 
        (string-padding string)))
 
+(defun decode-string (data)
+  "converts a binary vector to a string and removes trailing #\nul characters"
+  (string-trim '(#\nul) (coerce (map 'vector #'code-char data) 'string)))
+
 ;; blobs are binary data, consisting of a length (int32) and bytes which are
 ;; osc-padded to a 4 byte boundary.
-
-(defun decode-blob (blob)
-  "decode a blob as a vector of unsigned bytes."
-  (let ((size (decode-int32
-	       (subseq blob 0 4))))
-    (subseq blob 4 (+ 4 size)))) 
 
 (defun encode-blob (blob)
   "encodes a blob from a given vector"
   (let ((bl (length blob)))
     (cat (encode-int32 bl) blob
 	 (pad (padding-length bl)))))      
+
+(defun decode-blob (blob)
+  "decode a blob as a vector of unsigned bytes."
+  (let ((size (decode-int32
+	       (subseq blob 0 4))))
+    (subseq blob 4 (+ 4 size)))) 
 
 ;; utility functions for osc-string/padding slonking
 

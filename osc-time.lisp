@@ -51,10 +51,12 @@ with microsecond precision, relative to 19700101."
 				(subsecs->microseconds subsecs)))))
 
 (defun timetag->unix-time (timetag)
-  (let* ((secs (ash timetag -32))
-	 (subsec-int32 (- timetag (ash secs 32))))
-    (the double-float (+ (- secs +unix-epoch+)
-			 (int32->subsecs subsec-int32)))))
+  (if (= timetag 1)
+      1					; immediate timetag
+      (let* ((secs (ash timetag -32))
+	     (subsec-int32 (- timetag (ash secs 32))))
+	(the double-float (+ (- secs +unix-epoch+)
+			     (int32->subsecs subsec-int32))))))
 
 (defun microseconds->subsecs (usecs)
   (declare (type (integer 0 1000000) usecs))
