@@ -101,6 +101,7 @@
           (integer (write-to-vector #\i))
           (float (write-to-vector #\f))
           (simple-string (write-to-vector #\s))
+	  (keyword (write-to-vector #\s))
 	  (t (write-to-vector #\b)))))
     (cat lump
          (pad (padding-length (length lump))))))     

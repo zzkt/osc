@@ -62,11 +62,12 @@
  dispatch for a given address pattern.."
   (list (gethash pattern tree)))
 
-(defun dispatch (tree osc-message)
+(defun dispatch (tree osc-message &optional device address port
+		 timetag)
   "calls the function(s) matching the address(pattern) in the osc 
    message with the data contained in the message"
   (let ((pattern (car osc-message)))
     (dolist (x (dp-match tree pattern))
       (unless (eq x NIL)
-        (apply #'x (cdr osc-message))))))
-
+        (funcall x (car osc-message) (cdr osc-message) device address
+        port timetag)))))
