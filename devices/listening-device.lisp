@@ -21,6 +21,7 @@
 
 (defun print-osc-debug-msg (receiver message length address port
 			    timetag)
-  (format t "~%~A~%received:~A~A ~A bytes from ~A ~A ~%timetag:~A~A~%unix-time:~A~F~%"
-	  (name receiver) #\Tab message length address port #\Tab
-	  timetag #\Tab (when timetag (timetag->unix-time timetag))))
+  (format t "~%~A~%received:~A~A~%bytes:~A~A~A~%from:~A~A~A ~A ~%timetag:~A~A~%unix-time:~A~F~%"
+	  (name receiver) #\Tab message #\Tab #\Tab length #\Tab #\Tab
+	  address port #\Tab timetag #\Tab
+	  (when timetag (timetag->unix-time timetag))))
