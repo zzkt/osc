@@ -1,17 +1,17 @@
 # Open Sound Control
 
-This is a common lisp implementation of the Open Sound Control Protocol aka OSC. The code should be close to the ansi standard, and does not rely on any external code/ffi/etc+ to do the basic encoding and decoding of packets. since OSC does not specify a transport layer, messages can be send using TCP or UDP (or carrier pigeons), however it seems UDP is more common amongst the programmes that communicate using the OSC protocol. the osc-examples.lisp file contains a few simple examples of how to send and recieve OSC via UDP, and so far seems reasonably compatible with the packets send from/to max-msp, pd, supercollider and liblo.
-
-more details about OSC can be found at . .,
-    http://www.cnmat.berkeley.edu/OpenSoundControl/
+This is a common lisp implementation of the Open Sound Control Protocol aka OSC. The code should be close to the ansi standard, and does not rely on any external code/ffi/etc+ to do the basic encoding and decoding of packets. since OSC does not specify a transport layer, messages can be send using TCP or UDP (or carrier pigeons), however it seems UDP is more common amongst the programmes that communicate using the OSC protocol. the osc-examples.lisp file contains a few simple examples of how to send and recieve OSC via UDP, and so far seems reasonably compatible with the packets send from/to max-msp, pd, supercollider and liblo. more details about OSC can be found at http://www.cnmat.berkeley.edu/OpenSoundControl/
 
 the current version of this code is avilable from github
+
     git clone https://github.com/zzkt/osc 
 
 or via asdf-install.. .
+
     (asdf-install:install :osc)
 
 ## limitations
+
   - doesnt send nested bundles or syncronisable timetags
   - will raise an exception if the input is malformed
   - doesnt do any pattern matching on addresses
@@ -19,6 +19,7 @@ or via asdf-install.. .
   - only supports the type(tag)s specified in the OSC spec
 
 ## things to do in :osc
+
   - address patterns using pcre
   - data checking and error handling
   - portable en/decoding of floats -=> ieee754 tests
@@ -26,10 +27,12 @@ or via asdf-install.. .
   - correct en/decoding of timetags
 
 ## things to do in :osc-ex[tensions|tras]
+
   - liblo like network wrapping 
   - add namespace exploration using cl-zeroconf
 
 # changes
+
   - 2011-04-19
      - converted repo from darcs->git
   - 2007-02-20
