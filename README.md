@@ -14,7 +14,7 @@ or via asdf-install.. .
 
   - doesnt send nested bundles or syncronisable timetags
   - will raise an exception if the input is malformed
-  - doesnt do any pattern matching on addresses
+  - doesn't do any pattern matching on addresses
   - float en/decoding only tested on sbcl, cmucl, openmcl and allegro 
   - only supports the type(tag)s specified in the OSC spec
 
