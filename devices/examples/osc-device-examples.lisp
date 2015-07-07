@@ -7,12 +7,12 @@
 ;;;=====================================================================
 
 (defparameter *osc-server* (make-osc-server :protocol :udp
-					    :debug-mode t))
+                                            :debug-mode t))
 
 (boot *osc-server* 57127)
 
 (defparameter *osc-transmitter* (make-osc-transmitter
-				 :debug-mode t))
+                                 :debug-mode t))
 
 (connect *osc-transmitter* 57127 :host-name "localhost")
 (device-active-p *osc-transmitter*)
@@ -26,16 +26,16 @@
 (send *osc-transmitter* "/bar" 1 2 9)
 
 (send-bundle *osc-transmitter*
-	     :time ; current real time
-	     "/foo" 1 2 3)
+             :time ; current real time
+             "/foo" 1 2 3)
 
 (send-bundle *osc-transmitter*
-	     :now ; immediately
-	     "/foo" 1 2 3)
+             :now ; immediately
+             "/foo" 1 2 3)
 
 (send-bundle *osc-transmitter*
-	     (unix-time->timetag 1234567890.1234567d0)
-	     "/foo" 1 2 3)
+             (unix-time->timetag 1234567890.1234567d0)
+             "/foo" 1 2 3)
 
 (quit *osc-transmitter*)
 (quit *osc-server*)
@@ -46,13 +46,13 @@
 ;;;=====================================================================
 
 (defparameter *osc-server* (make-osc-server :protocol :udp
-					    :debug-mode t))
+                                            :debug-mode t))
 
 (boot *osc-server* 57127)
 
 (defparameter *osc-client* (make-osc-client
-			    :protocol :udp
-			    :debug-mode t))
+                            :protocol :udp
+                            :debug-mode t))
 
 (connect *osc-client* 57127 :host-name "localhost")
 
@@ -60,7 +60,7 @@
 (print-clients *osc-server*)
 (register *osc-client*)
 (print-clients *osc-server*)
-(quit *osc-client*)			; quit notifies the server
+(quit *osc-client*)                     ; quit notifies the server
 (print-clients *osc-server*)
 
 (connect *osc-client* 57127 :host-name "localhost")
@@ -68,8 +68,8 @@
 (send *osc-client* "/foo" 2 99)
 
 (send-bundle *osc-client*
-	     (unix-time->timetag 1234567890.1234567d0)
-	     "/foo" 1 2 3)
+             (unix-time->timetag 1234567890.1234567d0)
+             "/foo" 1 2 3)
 
 (send-bundle *osc-client* :now "/foo" 1)
 
@@ -77,21 +77,20 @@
 
 ;; Using the server as a transmitter.
 (send-to *osc-server* (address *osc-client*) (port *osc-client*)
-	 "/bar" 1 2 3)
+         "/bar" 1 2 3)
 
 ;; If a client is registered...
 (send-to-client *osc-server* (make-name-string *osc-client*)
-		"/bar" 2 99)
+                "/bar" 2 99)
 
 (register *osc-client*)
 
 (send-to-client *osc-server* (make-name-string *osc-client*)
-		"/bar" 2 99)
+                "/bar" 2 99)
 
 (send-bundle-to-client *osc-server*
-		       (make-name-string *osc-client*)
-		       :time
-		       "/bar" 2 99)
+                       (make-name-string *osc-client*)
+                       :timeq "/bar" 2 99)
 
 (add-osc-responder *osc-server* "/echo-sum"
     (cmd args device address port timetag)
@@ -108,7 +107,7 @@
   (send-bundle-to device address port (timetag+ timetag 1) "/future"))
 
 (send-bundle *osc-client* (get-current-timetag)
-	     "/timetag+1")
+             "/timetag+1")
 
 ;; Send a messages to all registered clients.
 (send-all *osc-server* "/foo" 1 2 3)
@@ -124,13 +123,13 @@
 ;;;=====================================================================
 
 (defparameter *osc-server* (make-osc-server :protocol :tcp
-					    :debug-mode t))
+                                            :debug-mode t))
 
 (boot *osc-server* 57127)
 
 (defparameter *osc-client* (make-osc-client
-			    :protocol :tcp
-			    :debug-mode t))
+                            :protocol :tcp
+                            :debug-mode t))
 
 (connect *osc-client* 57127 :host-name "localhost")
 
@@ -141,16 +140,16 @@
 (send *osc-client* "/foo" 1 2 3)
 
 (send-to-client *osc-server* (make-name-string
-			      *osc-client*)
-		"/foo" 1 2 3)
+                              *osc-client*)
+                "/foo" 1 2 3)
 
 (defparameter *osc-client2* (make-osc-client
-			     :protocol :tcp
-			     :debug-mode t))
+                             :protocol :tcp
+                             :debug-mode t))
 
 (connect *osc-client2* 57127
-	 :host-address "127.0.0.1"
-	 :port 57666) ; choose local port
+         :host-address "127.0.0.1"
+         :port 57666) ; choose local port
 
 (device-socket-name *osc-client2*)
 
@@ -189,8 +188,8 @@
 ;;;=====================================================================
 
 (defparameter *osc-client* (make-osc-client
-			    :protocol :udp
-			    :debug-mode t))
+                            :protocol :udp
+                            :debug-mode t))
 
 (connect *osc-client* 57120 :host-name "localhost" :port 57127)
 (address *osc-client*)
@@ -200,17 +199,16 @@
 
 ;;---------------------------------------------------------------------
 ;; run in sc
-c=OSCresponder(
-	nil,
-	'/foo',
-	{|t,r,msg,addr| [t,r,msg,addr].postln}).add
+c=OSCresponder(nil,
+               '/foo',
+               {|t,r,msg,addr| [t,r,msg,addr].postln}).add
 ;;---------------------------------------------------------------------
 
 (send *osc-client* "/foo" 1 2 3)
 
 (send-bundle *osc-client*
-	     (get-current-timetag)
-	     "/foo" 3)
+             (get-current-timetag)
+             "/foo" 3)
 
 (add-osc-responder *osc-client* "/echo-sum"
     (cmd args disp addr port timetag)
@@ -220,12 +218,11 @@ c=OSCresponder(
 ;; Send /echo-sum from sc, and lisp returns the sum.
 n=NetAddr("localhost", 57127)
 
-e=OSCresponder(
-	nil,
-	'/echo-sum',
-	{|t,r,msg,addr| 
-		[t,r,msg,addr].postln;
-	}).add
+e=OSCresponder(nil,
+               '/echo-sum',
+               {|t,r,msg,addr| 
+                   [t,r,msg,addr].postln;
+               }).add
 
 n.sendMsg('/echo-sum', 1, 2, 3) // send numbers, lisp returns sum.
 ;;---------------------------------------------------------------------
@@ -238,8 +235,8 @@ n.sendMsg('/echo-sum', 1, 2, 3) // send numbers, lisp returns sum.
 ;;;=====================================================================
 
 (defparameter *osc-client* (make-osc-client
-			    :protocol :udp
-			    :debug-mode t))
+                            :protocol :udp
+                            :debug-mode t))
 
 (connect *osc-client* 57110 :host-name "localhost" :port 57127)
 
@@ -248,12 +245,12 @@ n.sendMsg('/echo-sum', 1, 2, 3) // send numbers, lisp returns sum.
 (send *osc-client* "/n_free" 1001)
 
 (send-bundle *osc-client*
-	     (timetag+ (get-current-timetag) 2) ; 2 secs later
-	     "/s_new" "default" 1001 0 0 "freq" 500)
+             (timetag+ (get-current-timetag) 2) ; 2 secs later
+             "/s_new" "default" 1001 0 0 "freq" 500)
 
 (send *osc-client* "/n_free" 1001)
 
 (quit *osc-client*) ; Sends default /quit notification which scsynth
-		    ; ignores. Ideally osc-client should be subclassed
-		    ; to allow scsynth specific behaviour to be
-		    ; implemented.
+                    ; ignores. Ideally osc-client should be subclassed
+                    ; to allow scsynth specific behaviour to be
+                    ; implemented.
