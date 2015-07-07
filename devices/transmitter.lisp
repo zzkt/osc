@@ -28,7 +28,9 @@
   (if (not (device-active-p transmitter))
       (progn
 	(let ((socket (make-socket (protocol transmitter))))
-	  (socket-bind socket #(127 0 0 1) port)
+	  (if port
+          (socket-bind socket #(127 0 0 1) port)
+          (socket-bind socket))
 	  (socket-connect socket host-address host-port)
 	  (socket-make-stream socket
 			      :input nil :output t 
