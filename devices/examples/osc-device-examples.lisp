@@ -1,6 +1,6 @@
 (cl:in-package #:osc)
 
-(asdf:oos 'asdf:load-op 'osc)
+(ql:quickload "osc")
 
 ;;;=====================================================================
 ;;; OSC UDP transmitter -> server
