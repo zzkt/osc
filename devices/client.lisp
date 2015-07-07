@@ -78,7 +78,8 @@
 		      (decode-bundle buffer length)
 		    (when (debug-mode receiver)
 		      (print-osc-debug-msg receiver message length
-					   address port timetag))
+                                   (peer-address receiver)
+                                   (peer-port receiver) timetag))
 		    (dispatch (address-tree receiver) message receiver
 			      address port timetag))))
 	       (osc-device-cleanup receiver)))

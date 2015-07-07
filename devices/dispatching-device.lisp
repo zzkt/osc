@@ -12,8 +12,8 @@
 		  (multiple-value-bind (message timetag)
 		      (osc:decode-bundle buffer length)
 		    (when (debug-mode receiver)
-		      (print-osc-debug-msg receiver message length
-					   address port timetag))
+		      (print-osc-debug-msg receiver message length address
+                                   port timetag))
 		    (osc:dispatch (address-tree receiver) message
 				  receiver address port timetag))))
        (osc-device-cleanup receiver)))
