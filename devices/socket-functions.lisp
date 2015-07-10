@@ -16,10 +16,11 @@
 (defun make-udp-socket ()
   (make-instance 'inet-socket :type :datagram :protocol :udp))
 
-(defun make-peername-string (socket)
-  (multiple-value-bind (addr port)
-      (socket-peername socket)
-    (make-addr+port-string addr port)))
+(defun make-peername-string (osc-device)
+  (when (socket osc-device)
+    (multiple-value-bind (addr port)
+        (socket-peername (socket osc-device))
+      (make-addr+port-string addr port))))
 
 (defun make-name-string (osc-device)
   (when (socket osc-device)
