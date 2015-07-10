@@ -3,10 +3,10 @@
 (defgeneric make-listening-thread (listening-device))
 
 (defmethod connect progn ((listening-device listening-device)
-			  host-port &key host-address host-name port)
+                          host-port &key host-address host-name port)
   (declare (ignore host-port host-address host-name port))
   (set-listening-thread (make-listening-thread listening-device)
-			listening-device))
+                        listening-device))
 
 (defmethod quit ((device listening-device))
   (sb-thread:terminate-thread (listening-thread device)))
@@ -20,8 +20,8 @@
   (call-next-method))
 
 (defun print-osc-debug-msg (receiver message length address port
-			    timetag)
+                            timetag)
   (format t "~%~A~%received:~A~A~%bytes:~A~A~A~%from:~A~A~A ~A ~%timetag:~A~A~%unix-time:~A~F~%"
-	  (name receiver) #\Tab message #\Tab #\Tab length #\Tab #\Tab
-	  address port #\Tab timetag #\Tab
-	  (when timetag (timetag->unix-time timetag))))
+          (name receiver) #\Tab message #\Tab #\Tab length #\Tab #\Tab
+          address port #\Tab timetag #\Tab
+          (when timetag (timetag->unix-time timetag))))

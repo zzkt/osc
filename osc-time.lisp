@@ -11,17 +11,17 @@
   (typep object 'timetag))
 
 (defun unix-secs+usecs->timetag (secs usecs)
-    (let ((sec-offset (+ secs +unix-epoch+))) ; Seconds from 1900.
-      (setf sec-offset (ash sec-offset 32))   ; Make seconds the top
-					      ; 32 bits.
-      (let ((usec-offset
-	     (round (* usecs +2^32/MILLION+))))	; Fractional part.
-	(the timetag (+ sec-offset usec-offset)))))
+  (let ((sec-offset (+ secs +unix-epoch+))) ; Seconds from 1900.
+    (setf sec-offset (ash sec-offset 32))   ; Make seconds the top 32
+                                            ; bits.
+    (let ((usec-offset
+           (round (* usecs +2^32/MILLION+)))) ; Fractional part.
+      (the timetag (+ sec-offset usec-offset)))))
 
 (defun get-current-timetag ()
-  "Returns a fixed-point 64 bit NTP-style timetag, where the top
-  32 bits represent seconds since midnight 19000101, and the bottom 32
-  bits represent the fractional parts of a second."
+  "Returns a fixed-point 64 bit NTP-style timetag, where the top 32
+bits represent seconds since midnight 19000101, and the bottom 32 bits
+represent the fractional parts of a second."
   (multiple-value-bind (secs usecs)
       (sb-ext:get-time-of-day)
     (the timetag (unix-secs+usecs->timetag secs usecs))))
@@ -47,16 +47,16 @@ with microsecond precision, relative to 19700101."
   (multiple-value-bind (secs subsecs)
       (floor unix-time)
     (the timetag
-      (unix-secs+usecs->timetag secs
-				(subsecs->microseconds subsecs)))))
+         (unix-secs+usecs->timetag secs
+                                   (subsecs->microseconds subsecs)))))
 
 (defun timetag->unix-time (timetag)
   (if (= timetag 1)
-      1					; immediate timetag
+      1                                 ; immediate timetag
       (let* ((secs (ash timetag -32))
-	     (subsec-int32 (- timetag (ash secs 32))))
-	(the double-float (+ (- secs +unix-epoch+)
-			     (int32->subsecs subsec-int32))))))
+             (subsec-int32 (- timetag (ash secs 32))))
+        (the double-float (+ (- secs +unix-epoch+)
+                             (int32->subsecs subsec-int32))))))
 
 (defun microseconds->subsecs (usecs)
   (declare (type (integer 0 1000000) usecs))

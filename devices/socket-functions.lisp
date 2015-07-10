@@ -25,7 +25,7 @@
 (defun make-name-string (osc-device)
   (when (socket osc-device)
     (multiple-value-bind (addr port)
-	(socket-name (socket osc-device))
+        (socket-name (socket osc-device))
       (make-addr+port-string addr port))))
 
 (defun make-addr+port-string (addr port)

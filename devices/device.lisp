@@ -45,7 +45,7 @@
     :initform (make-osc-tree))))
 
 (defclass dispatching-device-udp (dispatching-device receiving-device
-						     udp-device) ())
+                                                     udp-device) ())
 
 
 ;;;=====================================================================
@@ -55,7 +55,7 @@
 (defclass osc-transmitter (osc-device) ())
 
 (defclass osc-client (dispatching-device receiving-device
-					 osc-transmitter) ())
+                                         osc-transmitter) ())
 
 (defclass osc-server (dispatching-device osc-transmitter)
   ((buffer-size
@@ -70,7 +70,7 @@
   ((clients
     :reader clients
     :initarg :clients)))
-				   
+
 
 ;;;=====================================================================
 ;;; OSC device concrete classes
@@ -83,12 +83,12 @@
 (defclass osc-client-tcp (osc-client tcp-device) ())
 
 (defclass osc-server-udp (osc-server dispatching-device-udp
-			  osc-transmitter-udp) ())
+                                     osc-transmitter-udp) ())
 
 (defclass osc-server-tcp (osc-server osc-transmitter tcp-device) ())
 
 (defclass osc-client-endpoint-tcp (osc-client-endpoint
-				   osc-client-tcp) ())
+                                   osc-client-tcp) ())
 
 
 ;;;=====================================================================
@@ -104,9 +104,9 @@
 (defgeneric name (osc-device)
   (:method ((osc-device osc-device))
     (concatenate 'string
-		 (symbol-name (class-name (class-of osc-device)))
-		 "-"
-		 (make-name-string osc-device))))
+                 (symbol-name (class-name (class-of osc-device)))
+                 "-"
+                 (make-name-string osc-device))))
 
 (defmethod buffer-size ((osc-device dispatching-device))
   (length (socket-buffer osc-device)))
@@ -115,12 +115,12 @@
 
 (defgeneric osc-device-cleanup (device)
   (:method :before ((osc-device osc-device))
-	   (when (cleanup-fun osc-device)
-	     (funcall (cleanup-fun osc-device) osc-device)))
+           (when (cleanup-fun osc-device)
+             (funcall (cleanup-fun osc-device) osc-device)))
   (:method ((osc-device osc-device))
     (when (debug-mode osc-device)
       (format t "~%OSC device stopped: ~A~%"
-	      (name osc-device)))
+              (name osc-device)))
     (when (socket osc-device)
       (handler-case
           (socket-close (socket osc-device) :abort t)

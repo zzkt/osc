@@ -99,7 +99,7 @@
 (add-osc-responder *osc-client* "/echo-answer"
     (cmd args device address port timetag)
   (format t "~%Sum is ~A" (car args)))
-  
+
 (send *osc-client* "/echo-sum" 1 2 3 4)
 
 (add-osc-responder *osc-server* "/timetag+1"
@@ -220,7 +220,7 @@ n=NetAddr("localhost", 57127)
 
 e=OSCresponder(nil,
                '/echo-sum',
-               {|t,r,msg,addr| 
+               {|t,r,msg,addr|
                    [t,r,msg,addr].postln;
                }).add
 

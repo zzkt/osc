@@ -51,23 +51,23 @@
    only one function should be associated with an address, any
    previous registration will be overwritten"
   (setf (gethash address tree)
-	function))
+        function))
 
 (defun dp-remove (tree address)
   "removes the function associated with the given address.."
   (remhash address tree))
 
 (defun dp-match (tree pattern)
-"returns a list of functions which are registered for
- dispatch for a given address pattern.."
+  "returns a list of functions which are registered for dispatch for a
+given address pattern.."
   (list (gethash pattern tree)))
 
 (defun dispatch (tree osc-message &optional device address port
-		 timetag)
+                                    timetag)
   "calls the function(s) matching the address(pattern) in the osc 
    message with the data contained in the message"
   (let ((pattern (car osc-message)))
     (dolist (x (dp-match tree pattern))
       (unless (eq x NIL)
         (funcall x (car osc-message) (cdr osc-message) device address
-        port timetag)))))
+                 port timetag)))))
