@@ -122,5 +122,9 @@
       (format t "~%OSC device stopped: ~A~%"
 	      (name osc-device)))
     (when (socket osc-device)
-      (socket-close (socket osc-device))
+      (handler-case
+          (socket-close (socket osc-device) :abort t)
+        (sb-int:simple-stream-error ()
+          (when (debug-mode osc-device)
+            (warn "Device ~A gone away." (name osc-device)))))
       (set-socket nil osc-device))))
