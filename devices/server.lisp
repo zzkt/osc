@@ -117,18 +117,13 @@
 ;;;=====================================================================
 
 (defun register-tcp-client (server transmitter)
-  "Clients are keyed on the names-string of the server-side socket,
-not the peer name because the peer may close the socket after which
-the peer name is no longer available. FIXME: Maybe we want to store
-the peername independently of the socket's connection status?"
-  (let ((client-name (make-name-string transmitter)))
-    (when (debug-mode server)
-      (format t "Client registered: ~A~%" client-name))
-    (setf (gethash client-name (clients server)) transmitter)))
+  (setf (gethash (make-peername-string transmitter)
+		 (clients server))
+	transmitter))
 
 (defun unregister-tcp-client (server transmitter)
-  (remhash (make-name-string transmitter)
-           (clients server)))
+  (remhash (make-peername-string transmitter)
+	   (clients server)))
 
 (defun make-unregister-self-fun (server)
   #'(lambda (client)
