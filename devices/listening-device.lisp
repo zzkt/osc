@@ -27,5 +27,5 @@
           address port #\Tab timetag #\Tab
           (when timetag (timetag->unix-time timetag))
           #\Tab #\Tab)
-  (format-osc-data data stream)
+  (format-osc-data data :stream stream)
   (format stream "~%"))
