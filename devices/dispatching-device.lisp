@@ -9,13 +9,13 @@
              do (multiple-value-bind (buffer length address port)
                     (socket-receive (socket receiver)
                                     (socket-buffer receiver) nil)
-                  (multiple-value-bind (message timetag)
-                      (osc:decode-bundle buffer length)
+                  (multiple-value-bind (data timetag)
+                      (osc:decode-bundle buffer :end length)
                     (when (debug-mode receiver)
-                      (print-osc-debug-msg receiver message length
+                      (print-osc-debug-msg receiver data length
                                            address port timetag))
-                    (osc:dispatch (address-tree receiver) message
-                                  receiver address port timetag))))
+                    (dispatch (address-tree receiver) data receiver
+                              address port))))
        (osc-device-cleanup receiver)))
    :name (format nil "osc-receiver-udp: ~A~%" (name receiver))))
 
@@ -25,12 +25,13 @@
 ;;;=====================================================================
 
 (defmacro add-osc-responder (dispatcher cmd-name
-                             (cmd args disp addr port timetag) &body
-                                                                 body)
+                             (cmd args device address port timetag bundle)
+                             &body body)
   `(dp-register (address-tree ,dispatcher) ,cmd-name
-                (lambda (,cmd ,args ,disp ,addr ,port ,timetag)
-                  (declare (ignorable ,cmd ,args ,disp ,addr
-                                      ,port ,timetag))
+                (lambda (,cmd ,args ,device ,address ,port ,timetag
+                         ,bundle)
+                  (declare (ignorable ,cmd ,args ,device ,address
+                                      ,port ,timetag ,bundle))
                   ,@body)))
 
 (defgeneric remove-osc-responder (dispatcher address)

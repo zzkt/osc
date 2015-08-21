@@ -50,28 +50,41 @@
 ;;
 ;;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
 
-(defun encode-bundle (data &optional timetag)
-  "will encode an osc message, or list of messages as a bundle
-   with an optional timetag (symbol or 64bit int).
-   doesnt handle nested bundles"
-  (cat '(35 98 117 110 100 108 101 0)    ; #bundle
-       (if timetag
-           (encode-timetag timetag)
-           (encode-timetag :now))
-       (if (listp (car data))
-           (apply #'cat (mapcar #'encode-bundle-elt data))
-           (encode-bundle-elt data))))
+(defparameter *debug* 0
+  "Set debug verbosity for core library functions. Currently levels
+  are 0-3.")
 
-(defun encode-bundle-elt (data)
-  (let ((message (apply #'encode-message data)))
-    (cat (encode-int32 (length message)) message)))
+(defgeneric encode-osc-data (data))
 
-(defun encode-message (address &rest data)
-  "encodes an osc message with the given address and data."
-  (concatenate '(vector (unsigned-byte 8))
-               (encode-address address)
-               (encode-typetags data)
-               (encode-data data)))
+(defmethod encode-osc-data ((data message))
+  "Encode an osc message with the given address and args."
+  (with-slots (command args) data
+    (concatenate '(vector (unsigned-byte 8))
+                 (encode-address command)
+                 (encode-typetags args)
+                 (encode-args args))))
+
+(defmethod encode-osc-data ((data bundle))
+  "Encode an osc bundle. A bundle contains a timetag (symbol or 64bit
+  int) and a list of message or nested bundle elements."
+  (with-slots (timetag elements) data
+    (cat '(35 98 117 110 100 108 101 0)    ; #bundle
+         (if timetag
+             (encode-timetag timetag)
+             (encode-timetag :now))
+         (apply #'cat (mapcar #'encode-bundle-elt elements)))))
+
+(defgeneric encode-bundle-elt (data))
+
+(defmethod encode-bundle-elt ((data message))
+  (let ((bytes (encode-osc-data data)))
+    (cat (encode-int32 (length bytes)) bytes)))
+
+(defmethod encode-bundle-elt ((data bundle))
+  (let ((bytes (encode-osc-data data)))
+    (cat (encode-int32 (length bytes)) bytes)))
+
+;; Auxilary functions
 
 (defun encode-address (address)
   (cat (map 'vector #'char-code address)
@@ -106,12 +119,12 @@
     (cat lump
          (pad (padding-length (length lump))))))
 
-(defun encode-data (data)
-  "encodes data in a format suitable for an OSC message"
+(defun encode-args (args)
+  "encodes args in a format suitable for an OSC message"
   (let ((lump (make-array 0 :adjustable t :fill-pointer t)))
     (macrolet ((enc (f)
                  `(setf lump (cat lump (,f x)))))
-      (dolist (x data)
+      (dolist (x args)
         (typecase x
           (integer (enc encode-int32))
           (float (enc encode-float32))
@@ -126,33 +139,84 @@
 ;;
 ;;; ;;    ;;     ; ;     ;      ;      ; ;
 
-(defun decode-bundle (data &optional bundle-length)
-  "Decodes an osc bundle into a list of decoded-messages, which has an
-osc-timetag as its first element. An optional buffer-length argument
-can be supplied (i.e. the length value returned by socket-receive),
-otherwise the entire buffer is decoded - in which case, if you are
-reusing buffers, you are responsible for ensuring that the buffer does
-not contain stale data."
-  (unless bundle-length
-    (setf bundle-length (length data)))
-  ;; (print (subseq data 0 bundle-length))
-  (let ((contents '()))
-    (if (equalp 35 (elt data 0))           ; a bundle begins with
-                                           ; '#bundle' (8 bytes)
-        (let ((timetag (subseq data 8 16)) ; bytes 8-15 are timestamp
-              (i 16))
-          (loop while (< i bundle-length)
-             do (let ((mark (+ i 4))
-                      (size (decode-int32
-                             (subseq data i (+ i 4)))))
-                  (if (eq size 0)
-                      (setf bundle-length 0)
-                      (push (decode-bundle
-                             (subseq data mark (+ mark size)))
-                            contents))
-                  (incf i (+ 4 size))))
-          (values (car contents) (decode-timetag timetag)))
-        (values (decode-message data) nil))))
+(defun bundle-p (buffer &optional (start 0))
+  "A bundle begins with '#bundle' (8 bytes). The start argument should
+index the beginning of a bundle in the buffer."
+  (= 35 (elt buffer start)))
+
+(defun get-timetag (buffer &optional (start 0))
+  "Bytes 8-15 are the bundle timestamp. The start argument should
+index the beginning of a bundle in the buffer."
+  (decode-timetag (subseq buffer
+                          (+ 8 start)
+                          (+ 16 start))))
+
+(defun get-bundle-element-length (buffer &optional (start 16))
+  "Bytes 16-19 are the size of the bundle element. The start argument
+should index the beginning of the bundle element (length, content)
+pair in the buffer."
+  (decode-int32 (subseq buffer start (+ 4 start))))
+
+(defun get-bundle-element (buffer &optional (start 16))
+  "Bytes 20 upto to the length of the content (defined by the
+preceeding 4 bytes) are the content of the bundle. The start argument
+should index the beginning of the bundle element (length, content)
+pair in the buffer."
+  (let ((length (get-bundle-element-length buffer start)))
+    (subseq buffer
+            (+ 4 start)
+            (+ (+ 4 start)
+               (+ length)))))
+
+(defun split-sequence-by-n (sequence n)
+  (loop :with length := (length sequence)
+     :for start :from 0 :by n :below length
+     :collecting (coerce
+                  (subseq sequence start (min length (+ start n)))
+                  'list)))
+
+(defun print-buffer (buffer &optional (n 8))
+  (format t "~%~{~{ ~5d~}~%~}Total: ~a bytes~2%"
+          (split-sequence-by-n buffer n)
+          (length buffer)))
+
+(defun decode-bundle (buffer &key (start 0) end)
+  "Decodes an osc bundle/message into a bundle/message object. Bundles
+  comprise an osc-timetag and a list of elements, which may be
+  messages or bundles recursively. An optional end argument can be
+  supplied (i.e. the length value returned by socket-receive, or the
+  element length in the case of nested bundles), otherwise the entire
+  buffer is decoded - in which case, if you are reusing buffers, you
+  are responsible for ensuring that the buffer does not contain stale
+  data."
+  (unless end
+    (setf end (- (length buffer) start)))
+  (when (>= *debug* 2)
+    (format t "~%Buffer start: ~a end: ~a~%" start end)
+    (print-buffer (subseq buffer start end)))
+  (if (bundle-p buffer start)
+      ;; Bundle
+      (let ((timetag (get-timetag buffer start)))
+        (incf start (+ 8 8))            ; #bundle, timetag bytes
+        (loop while (< start end)
+           for element-length = (get-bundle-element-length
+                                 buffer start)
+           do (incf start 4)            ; length bytes
+           when (>= *debug* 1)
+           do (format t "~&Bundle element length: ~a~%" element-length)
+           collect (decode-bundle buffer
+                                  :start start
+                                  :end (+ start element-length))
+           into elements
+           do (incf start (+ element-length))
+           finally (return
+                     (values (apply #'make-bundle timetag elements)
+                             timetag))))
+      ;; Message
+      (let ((message
+             (decode-message
+              (subseq buffer start (+ start end)))))
+        (apply #'make-message (car message) (cdr message)))))
 
 (defun decode-message (message)
   "reduces an osc message to an (address . data) pair. .."

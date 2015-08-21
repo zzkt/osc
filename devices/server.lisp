@@ -80,13 +80,13 @@
 
 (defmethod make-server-responders ((server osc-server-udp))
   (add-osc-responder server "/cl-osc/register"
-      (cmd args device address port timetag)
+      (cmd args device address port timetag bundle)
     (let ((listening-port (car args))) ; Optional port for sending
-                                        ; return messages to.
+                                       ; return messages.
       (register-udp-client device address
                            (if listening-port listening-port port))))
   (add-osc-responder server "/cl-osc/quit"
-      (cmd args device address port timetag)
+      (cmd args device address port timetag bundle)
     (unregister-udp-client device address port)))
 
 (defun register-udp-client (server addr port)
@@ -107,10 +107,10 @@
     (notify-registered server client-name)))
 
 (defun notify-registered (server client-name)
-  (send-to-client server client-name "/cl-osc/server/registered"))
+  (send-msg-to-client server client-name "/cl-osc/server/registered"))
 
 (defun notify-quit (server client-name)
-  (send-to-client server client-name "/cl-osc/server/quit"))
+  (send-msg-to-client server client-name "/cl-osc/server/quit"))
 
 
 ;;;=====================================================================
@@ -153,30 +153,72 @@
 ;;; Server sending functions
 ;;;=====================================================================
 
-(defgeneric send-to-client (server client-name &rest msg)
-  (:method :around ((server osc-server) client-name &rest msg)
+;; Send to a client
+
+(defgeneric send-to-client (server client-name data)
+  (:method :around ((server osc-server) client-name data)
            (let ((client (gethash client-name (clients server))))
              (if client
-                 (apply #'call-next-method server client msg)
+                 (call-next-method server client data)
                  (warn "No client called ~A~%" client-name)))))
 
-(defmethod send-to-client ((server osc-server-udp) client-name &rest
-                                                                 msg)
-  (apply #'send-to server (first client-name) (second client-name)
-         msg))
+(defmethod send-to-client ((server osc-server-udp) client-name data)
+  (send-to server (first client-name) (second client-name) data))
 
-(defmethod send-to-client ((server osc-server-tcp) client &rest msg)
-  (apply #'send client msg))
+(defmethod send-to-client ((server osc-server-tcp) client data)
+  (send client data))
 
-(defgeneric send-bundle-to-client (server client-name timetag &rest
-                                                                msg)
-  (:method :around ((server osc-server) client-name timetag &rest msg)
-           (let ((client (gethash client-name (clients server))))
-             (if client
-                 (apply #'call-next-method server client timetag msg)
-                 (warn "No client called ~A~%" client-name)))))
+(defgeneric send-msg-to-client (server client-name command &rest args)
+  (:method ((server osc-server) client-name command &rest args)
+    (let ((message (apply #'make-message command args)))
+      (send-to-client server client-name message))))
 
-(defmethod send-bundle-to-client ((server osc-server-udp) client-name
-                                  timetag &rest msg)
-  (apply #'send-bundle-to server (first client-name)
-         (second client-name) timetag msg))
+(defgeneric send-bundle-to-client (server client-name timetag command
+                                   &rest args)
+  (:method ((server osc-server) client-name timetag command &rest
+                                                              args)
+    (let ((bundle (make-bundle timetag
+                               (apply #'make-message command args))))
+      (send-to-client server client-name bundle))))
+
+;; Send all
+
+(defgeneric send-all (server data))
+
+(defmethod send-all ((server osc-server-udp) data)
+  (loop for addr+port being the hash-value in (clients server)
+     do (send-to server (first addr+port) (second addr+port) data)))
+
+(defmethod send-all ((server osc-server-tcp) data)
+  (loop for endpoint being the hash-value in (clients server)
+     do (send endpoint data)))
+
+(defmethod send-all ((client-endpoint osc-client-endpoint) data)
+  (loop for endpoint being the hash-value in (clients client-endpoint)
+     ;; FIXME: Don't not reply to the sender in this case so that the
+     ;; behaviour of send-all is uniform for both UDP and TCP. But
+     ;; could be useful to have a means of broadcasting messages to
+     ;; all clients of a server except the client that generated the
+     ;; message.
+     ;;
+     ;; unless (eq endpoint client-endpoint) ; don't send to sender
+     do (send endpoint data)))
+
+(defgeneric send-msg-all (server command &rest args)
+  (:method ((server osc-server) command &rest args)
+    (let ((message (apply #'make-message command args)))
+      (send-all server message)))
+  (:method ((client-endpoint osc-client-endpoint) command &rest args)
+    (let ((message (apply #'make-message command args)))
+      (send-all client-endpoint message))))
+
+(defgeneric send-bundle-all (server timetag command &rest args)
+  (:method ((server osc-server) timetag command &rest args)
+    (let ((bundle (make-bundle timetag
+                               (apply #'make-message command args))))
+      (send-all server bundle)))
+  (:method ((client-endpoint osc-client-endpoint) timetag command
+            &rest args)
+    (let ((bundle (make-bundle timetag
+                               (apply #'make-message command args))))
+      (send-all client-endpoint bundle))))

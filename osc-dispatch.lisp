@@ -47,27 +47,41 @@
 ;;;;  ; ; ;   ;; 
 
 (defun dp-register (tree address function)
-  "registers a function to respond to incoming osc message. since
+  "Registers a function to respond to incoming osc messages. Since
    only one function should be associated with an address, any
-   previous registration will be overwritten"
+   previous registration will be overwritten."
   (setf (gethash address tree)
         function))
 
 (defun dp-remove (tree address)
-  "removes the function associated with the given address.."
+  "Removes the function associated with the given address."
   (remhash address tree))
 
 (defun dp-match (tree pattern)
-  "returns a list of functions which are registered for dispatch for a
-given address pattern.."
+  "Returns a list of functions which are registered for dispatch for a
+given address pattern."
   (list (gethash pattern tree)))
 
-(defun dispatch (tree osc-message &optional device address port
-                                    timetag)
-  "calls the function(s) matching the address(pattern) in the osc 
-   message with the data contained in the message"
-  (let ((pattern (car osc-message)))
+(defgeneric dispatch (tree data device address port &optional timetag
+                                                      parent-bundle))
+
+(defmethod dispatch (tree (data message) device address port &optional
+                                                               timetag
+                                                               parent-bundle)
+  "Calls the function(s) matching the address(pattern) in the osc
+message passing the message object, the recieving device, and
+optionally in the case where a message is part of a bundle, the
+timetag of the bundle and the enclosing bundle."
+  (let ((pattern (command data)))
     (dolist (x (dp-match tree pattern))
       (unless (eq x NIL)
-        (funcall x (car osc-message) (cdr osc-message) device address
-                 port timetag)))))
+        (funcall x (command data) (args data) device address port
+                 timetag parent-bundle)))))
+
+(defmethod dispatch (tree (data bundle) device address port &optional
+                                                              timetag
+                                                              parent-bundle)
+  "Dispatches each bundle element in sequence."
+  (declare (ignore timetag parent-bundle))
+  (dolist (element (elements data))
+    (dispatch tree element device address port (timetag data) data)))

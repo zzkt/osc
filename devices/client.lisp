@@ -1,6 +1,6 @@
 (cl:in-package #:osc)
 
-(defun make-osc-client (&key(protocol :udp) debug-mode
+(defun make-osc-client (&key (protocol :udp) debug-mode
                         (buffer-size *default-osc-buffer-size*)
                         address-tree cleanup-fun)
   (ecase protocol
@@ -28,25 +28,25 @@
 
 (defmethod make-client-responders ((client osc-client-udp))
   (add-osc-responder client "/cl-osc/server/registered"
-      (cmd args device address port timetag)
+      (cmd args device address port timetag bundle)
     (format t "Registered with server at ~A~%"
             (make-addr+port-string address port)))
   (add-osc-responder client "/cl-osc/server/quit"
-      (cmd args device address port timetag)
+      (cmd args device address port timetag bundle)
     (format t "Server ~A has quit~%"
             (make-addr+port-string address port))))
 
 (defgeneric register (client)
   (:method ((client osc-client-udp))
-    (send client "/cl-osc/register" (port client))))
+    (send-msg client "/cl-osc/register" (port client))))
 
 (defmethod osc-device-cleanup ((device osc-client-udp))
-  (send device "/cl-osc/quit")
+  (send-msg device "/cl-osc/quit")
   (call-next-method))
 
 (defun make-osc-client-endpoint-tcp (socket debug-mode buffer-size
                                      address-tree clients &optional
-                                                            cleanup-fun)
+                                     cleanup-fun)
   (socket-make-stream socket
                       :input nil :output t
                       :element-type '(unsigned-byte 8)
@@ -74,14 +74,14 @@
                   (when (eq length 0)   ; Closed by remote
                     (sb-thread:terminate-thread
                      sb-thread:*current-thread*))
-                  (multiple-value-bind (message timetag)
-                      (decode-bundle buffer length)
+                  (multiple-value-bind (data timetag)
+                      (decode-bundle buffer :end length)
                     (when (debug-mode receiver)
-                      (print-osc-debug-msg receiver message length
+                      (print-osc-debug-msg receiver data length
                                            (peer-address receiver)
                                            (peer-port receiver) timetag))
-                    (dispatch (address-tree receiver) message receiver
-                              address port timetag))))
+                    (dispatch (address-tree receiver) data receiver
+                              address port))))
        (osc-device-cleanup receiver)))
    :name (format nil "osc-client-tcp-connection: ~A~%"
                  (name receiver))))

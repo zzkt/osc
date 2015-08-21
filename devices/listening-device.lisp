@@ -19,9 +19,13 @@
   (fill (socket-buffer device) 0)
   (call-next-method))
 
-(defun print-osc-debug-msg (receiver message length address port
-                            timetag)
-  (format t "~%~A~%received:~A~A~%bytes:~A~A~A~%from:~A~A~A ~A ~%timetag:~A~A~%unix-time:~A~F~%"
-          (name receiver) #\Tab message #\Tab #\Tab length #\Tab #\Tab
+(defun print-osc-debug-msg (receiver data length address port
+                            timetag &optional (stream t))
+  (format stream
+          "~&~a~%bytes rx:~a~a~%from:~a~a~a ~a~%timetag:~a~a~%unix-time:~a~f~%data:~a~a"
+          (name receiver) #\Tab length #\Tab #\Tab
           address port #\Tab timetag #\Tab
-          (when timetag (timetag->unix-time timetag))))
+          (when timetag (timetag->unix-time timetag))
+          #\Tab #\Tab)
+  (format-osc-data data stream)
+  (format stream "~%"))

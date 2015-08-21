@@ -59,69 +59,41 @@
   `(progn (write-sequence ,@msg ,stream)
           (finish-output ,stream)))
 
-(defgeneric send (transmitter &rest msg-args)
-  (:method ((transmitter osc-transmitter) &rest msg-args)
-    (let ((msg (apply #'encode-message msg-args)))
+(defgeneric send (transmitter data)
+  (:method ((transmitter osc-transmitter) data)
+    (let ((bytes (encode-osc-data data)))
       (osc-write-to-stream
-          (slot-value (socket transmitter) 'stream) msg))))
+          (slot-value (socket transmitter) 'stream) bytes))))
 
-(defgeneric send-bundle (transmitter timetag &rest msg-args)
-  (:method ((transmitter osc-transmitter) timetag &rest msg-args)
-    (let ((msg (encode-bundle msg-args timetag)))
-      (osc-write-to-stream
-          (slot-value (socket transmitter) 'stream) msg))))
+(defgeneric send-msg (transmitter command &rest args)
+  (:method ((transmitter osc-transmitter) command &rest args)
+    (let ((message (apply #'make-message command args)))
+      (send transmitter message))))
 
-;; Unconnected sending
+(defgeneric send-bundle (transmitter timetag command &rest args)
+  (:method ((transmitter osc-transmitter) timetag command &rest args)
+    (let ((bundle (make-bundle timetag
+                               (apply #'make-message command args))))
+      (send transmitter bundle))))
 
-(defgeneric send-to (transmitter address port &rest msg-args)
-  (:method ((transmitter osc-transmitter-udp) address port &rest
-                                                             msg-args)
+;; Unconnected sending (UDP only)
+
+(defgeneric send-to (transmitter address port data)
+  (:method ((transmitter osc-transmitter-udp) address port data)
     (socket-send (socket transmitter)
-                 (apply #'encode-message msg-args) nil
+                 (encode-osc-data data) nil
                  :address (list address port))))
 
-(defgeneric send-bundle-to (transmitter address port timestamp &rest
-                                                                 msg-args)
-  (:method ((transmitter osc-transmitter-udp) address port timestamp
-            &rest msg-args)
-    (socket-send (socket transmitter)
-                 (apply #'encode-bundle msg-args (list timestamp)) nil
-                 :address (list address port))))
+(defgeneric send-msg-to (transmitter address port command &rest args)
+  (:method ((transmitter osc-transmitter-udp) address port command
+            &rest args)
+    (let ((message (apply #'make-message command args)))
+      (send-to transmitter address port message))))
 
-;; Server functions
-
-(defgeneric send-all (server &rest msg-args))
-
-(defmethod send-all ((server osc-server-udp) &rest msg-args)
-  (loop for addr+port being the hash-value in (clients server)
-     do (apply #'send-to server (first addr+port) (second addr+port)
-               msg-args)))
-
-(defmethod send-all ((server osc-server-tcp) &rest msg-args)
-  (loop for endpoint being the hash-value in (clients server)
-     do (apply #'send endpoint msg-args)))
-
-(defmethod send-all ((client-endpoint osc-client-endpoint) &rest
-                                                             msg-args)
-  (loop for endpoint being the hash-value in (clients client-endpoint)
-     unless (eq endpoint client-endpoint) ; don't send to sender
-     do (apply #'send endpoint msg-args)))
-
-(defgeneric send-bundle-all (server timetag &rest msg-args))
-
-(defmethod send-bundle-all ((server osc-server-udp) timetag &rest
-                                                              msg-args)
-  (loop for addr+port being the hash-value in (clients server)
-     do (apply #'send-bundle-to server (first addr+port)
-               (second addr+port) timetag msg-args)))
-
-(defmethod send-bundle-all ((server osc-server-tcp) timetag &rest
-                                                              msg-args)
-  (loop for endpoint being the hash-value in (clients server)
-     do (apply #'send-bundle endpoint timetag msg-args)))
-
-(defmethod send-bundle-all ((client-endpoint osc-client-endpoint)
-                            timetag &rest msg-args)
-  (loop for endpoint being the hash-value in (clients client-endpoint)
-     unless (eq endpoint client-endpoint) ; don't send to sender
-     do (apply #'send-bundle endpoint timetag msg-args)))
+(defgeneric send-bundle-to (transmitter address port timetag command
+                            &rest args)
+  (:method ((transmitter osc-transmitter-udp) address port timetag
+            command &rest args)
+    (let ((bundle (make-bundle timetag
+                               (apply #'make-message command args))))
+      (send-to transmitter address port bundle))))
