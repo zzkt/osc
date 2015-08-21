@@ -7,7 +7,8 @@
     (:udp (make-instance 'osc-server-udp
                          :debug-mode debug-mode
                          :cleanup-fun cleanup-fun
-                         :buffer-size buffer-size))
+                         :buffer-size buffer-size
+                         :socket-buffer (make-socket-buffer buffer-size)))
     (:tcp (make-instance 'osc-server-tcp
                          :debug-mode debug-mode
                          :cleanup-fun cleanup-fun

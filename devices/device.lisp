@@ -35,8 +35,7 @@
 (defclass receiving-device (listening-device)
   ((socket-buffer
     :reader socket-buffer
-    :initarg :socket-buffer
-    :initform (make-socket-buffer))))
+    :initarg :socket-buffer)))
 
 (defclass dispatching-device (listening-device)
   ((address-tree
