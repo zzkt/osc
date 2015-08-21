@@ -25,15 +25,25 @@
 
 ;; Constructors
 
-(defun make-message (command &rest args)
+(defun make-message (command args)
+  (unless (listp args)
+    (setf args (list args)))
   (make-instance 'message
                  :command command
                  :args args))
 
-(defun make-bundle (timetag &rest elements)
+(defun message (command &rest args)
+  (make-message command args))
+
+(defun make-bundle (timetag elements)
+  (unless (listp elements)
+    (setf elements (list elements)))
   (make-instance 'bundle
                  :timetag timetag
                  :elements elements))
+
+(defun bundle (timetag &rest elements)
+  (make-bundle timetag elements))
 
 (defgeneric format-osc-data (data &key stream width))
 
@@ -45,8 +55,7 @@
             (concatenate 'string
                          (subseq args-string 0 width)
                          "...")))
-    (format stream "~a~a ~a~%"
-            #\Tab
+    (format stream "~a ~a~%"
             (command message)
             args-string)))
 

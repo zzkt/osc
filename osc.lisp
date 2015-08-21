@@ -210,13 +210,13 @@ pair in the buffer."
            into elements
            do (incf start (+ element-length))
            finally (return
-                     (values (apply #'make-bundle timetag elements)
+                     (values (make-bundle timetag elements)
                              timetag))))
       ;; Message
       (let ((message
              (decode-message
               (subseq buffer start (+ start end)))))
-        (apply #'make-message (car message) (cdr message)))))
+        (make-message (car message) (cdr message)))))
 
 (defun decode-message (message)
   "reduces an osc message to an (address . data) pair. .."

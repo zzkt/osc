@@ -41,18 +41,18 @@
 ;; bundle objects directly. This allows more complex (nested) bundles
 ;; to be created.
 
-(send *osc-transmitter* (make-message "/foo" 1 2 3))
+(send *osc-transmitter* (message "/foo" 1 2 3))
 
-(send *osc-transmitter* (make-bundle :now
-                                     (make-message "/foo" 1 2 3)))
+(send *osc-transmitter* (bundle :now
+                                (message "/foo" 1 2 3)))
 
 (let ((bundle
-       (make-bundle :now
-                    (make-message "/foo" '(1 2 3))
-                    (make-bundle :now
-                                 (make-bundle :now
-                                              (make-message "/bar"
-                                                            '(10 20 30)))))))
+       (bundle :now
+               (message "/foo" '(1 2 3))
+               (bundle :now
+                       (bundle :now
+                               (message "/bar"
+                                        '(10 20 30)))))))
   (send *osc-transmitter* bundle))
 
 (quit *osc-transmitter*)

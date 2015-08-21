@@ -170,15 +170,15 @@
 
 (defgeneric send-msg-to-client (server client-name command &rest args)
   (:method ((server osc-server) client-name command &rest args)
-    (let ((message (apply #'make-message command args)))
+    (let ((message (make-message command args)))
       (send-to-client server client-name message))))
 
 (defgeneric send-bundle-to-client (server client-name timetag command
                                    &rest args)
   (:method ((server osc-server) client-name timetag command &rest
                                                               args)
-    (let ((bundle (make-bundle timetag
-                               (apply #'make-message command args))))
+    (let ((bundle (bundle timetag
+                          (make-message command args))))
       (send-to-client server client-name bundle))))
 
 ;; Send all
@@ -206,19 +206,19 @@
 
 (defgeneric send-msg-all (server command &rest args)
   (:method ((server osc-server) command &rest args)
-    (let ((message (apply #'make-message command args)))
+    (let ((message (make-message command args)))
       (send-all server message)))
   (:method ((client-endpoint osc-client-endpoint) command &rest args)
-    (let ((message (apply #'make-message command args)))
+    (let ((message (make-message command args)))
       (send-all client-endpoint message))))
 
 (defgeneric send-bundle-all (server timetag command &rest args)
   (:method ((server osc-server) timetag command &rest args)
-    (let ((bundle (make-bundle timetag
-                               (apply #'make-message command args))))
+    (let ((bundle (bundle timetag
+                          (make-message command args))))
       (send-all server bundle)))
   (:method ((client-endpoint osc-client-endpoint) timetag command
             &rest args)
-    (let ((bundle (make-bundle timetag
-                               (apply #'make-message command args))))
+    (let ((bundle (bundle timetag
+                          (make-message command args))))
       (send-all client-endpoint bundle))))

@@ -67,13 +67,13 @@
 
 (defgeneric send-msg (transmitter command &rest args)
   (:method ((transmitter osc-transmitter) command &rest args)
-    (let ((message (apply #'make-message command args)))
+    (let ((message (make-message command args)))
       (send transmitter message))))
 
 (defgeneric send-bundle (transmitter timetag command &rest args)
   (:method ((transmitter osc-transmitter) timetag command &rest args)
-    (let ((bundle (make-bundle timetag
-                               (apply #'make-message command args))))
+    (let ((bundle (bundle timetag
+                          (make-message command args))))
       (send transmitter bundle))))
 
 ;; Unconnected sending (UDP only)
@@ -87,13 +87,13 @@
 (defgeneric send-msg-to (transmitter address port command &rest args)
   (:method ((transmitter osc-transmitter-udp) address port command
             &rest args)
-    (let ((message (apply #'make-message command args)))
+    (let ((message (make-message command args)))
       (send-to transmitter address port message))))
 
 (defgeneric send-bundle-to (transmitter address port timetag command
                             &rest args)
   (:method ((transmitter osc-transmitter-udp) address port timetag
             command &rest args)
-    (let ((bundle (make-bundle timetag
-                               (apply #'make-message command args))))
+    (let ((bundle (bundle timetag
+                          (make-message command args))))
       (send-to transmitter address port bundle))))
