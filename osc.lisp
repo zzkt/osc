@@ -96,6 +96,7 @@
    f => #(102) => float
    s => #(115) => string 
    b => #(98)  => blob
+   h => #(104) => int64
   and considers non int/float/string data to be a blob." 
 
   (let ((lump (make-array 0 :adjustable t 
@@ -106,7 +107,7 @@
       (write-to-vector #\,)
       (dolist (x data) 
         (typecase x
-          (integer (write-to-vector #\i))
+          (integer (if (>= x 4294967296) (write-to-vector #\h) (write-to-vector #\i)))
           (float (write-to-vector #\f))
           (simple-string (write-to-vector #\s))
 	  (t (write-to-vector #\b)))))
@@ -120,8 +121,8 @@
                  `(setf lump (cat lump (,f x)))))
       (dolist (x data) 
         (typecase x
-          (integer (enc encode-int32)) 
-          (float (enc encode-float32)) 
+          (integer (if (>= x 4294967296) (enc encode-int64) (enc encode-int32)))
+          (float (enc encode-float32))
           (simple-string (enc encode-string))
 	  (t (enc encode-blob))))
       lump)))
@@ -174,7 +175,8 @@
    i => #(105) => int32
    f => #(102) => float
    s => #(115) => string
-   b => #(98)  => blob"
+   b => #(98)  => blob
+   h => #(104) => int64"
 
   (let ((div (position 0 data)))
     (let ((tags (subseq data 1 div)) 
@@ -187,6 +189,10 @@
 		 (push (decode-int32 (subseq acc 0 4)) 
 		       result)
 		 (setf acc (subseq acc 4)))
+                ((eq x (char-code #\h)) 
+		 (push (decode-uint64 (subseq acc 0 8))
+		       result)
+		 (setf acc (subseq acc 8)))
 		((eq x (char-code #\f))
 		 (push (decode-float32 (subseq acc 0 4)) 
 		       result)
@@ -316,6 +322,50 @@
       (set-byte 2)
       (set-byte 3))
     buf))
+
+(defun encode-int64 (i)
+  "convert an integer into a sequence of 8 bytes in network byte order."
+  (declare (type integer i))
+  (let ((buf (make-sequence
+	      '(vector (unsigned-byte 8)) 8)))
+    (macrolet ((set-byte (n)
+		 `(setf (elt buf ,n)
+			(logand #xff (ash i ,(* 8 (- n 7)))))))
+      (set-byte 0)
+      (set-byte 1)
+      (set-byte 2)
+      (set-byte 3)
+      (set-byte 4)
+      (set-byte 5)
+      (set-byte 6)
+      (set-byte 7))
+    buf))
+
+(defun decode-uint64 (s)
+  "8 byte -> 64 bit unsigned int"
+  (let ((i (+ (ash (elt s 0) 56)
+	      (ash (elt s 1) 48)
+	      (ash (elt s 2) 40)
+	      (ash (elt s 3) 32)
+	      (ash (elt s 4) 24)
+	      (ash (elt s 5) 16)
+	      (ash (elt s 6) 8)
+	      (elt s 7))))
+    i))
+
+(defun decode-int64 (s)
+  "8 byte -> 64 bit int -> two's compliment (in network byte order)"
+  (let ((i (+ (ash (elt s 0) 56)
+	      (ash (elt s 1) 48)
+	      (ash (elt s 2) 40)
+	      (ash (elt s 3) 32)
+	      (ash (elt s 4) 24)
+	      (ash (elt s 5) 16)
+	      (ash (elt s 6) 8)
+	      (elt s 7))))
+    (if (>= i #x7fffffffffffffff)
+        (- 0 (- #x10000000000000000 i))
+	i)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary 
 
