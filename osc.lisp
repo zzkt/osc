@@ -199,11 +199,12 @@
 		   (setf acc (subseq acc pointer))))
 		((eq x (char-code #\b)) 
 		 (let* ((size (decode-int32 (subseq acc 0 4)))
-                        (end (padded-length (+ 4 size))))
+                        (bl (+ 4 size))
+                        (end (+ bl (mod (- 4 bl) 4)))) ; NOTE: cannot use (padded-length bl), as it is not the same algorithm. Blobs of 4, 8, 12 etc bytes should not be padded!
                    (push (decode-blob (subseq acc 0 end)) 
                          result)
                    (setf acc (subseq acc end))))
-		(t (error "unrecognised typetag"))))
+		(t (error "unrecognised typetag ~a" x))))
 	   tags)
       (nreverse result))))
 
@@ -340,7 +341,7 @@
   "encodes a blob from a given vector"
   (let ((bl (length blob)))
     (cat (encode-int32 bl) blob
-	 (pad (padding-length bl)))))      
+	 (pad (mod (- 4 bl) 4))))) ; NOTE: cannot use (padding-length bl), as it is not the same algorithm. Blobs of 4, 8, 12 etc bytes should not be padded!
 
 ;; utility functions for osc-string/padding slonking
 
