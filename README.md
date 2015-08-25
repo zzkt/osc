@@ -1,21 +1,22 @@
 # Open Sound Control
 
-This is a common lisp implementation of the Open Sound Control Protocol aka OSC. The code should be close to the ansi standard, and does not rely on any external code/ffi/etc+ to do the basic encoding and decoding of packets. since OSC does not specify a transport layer, messages can be send using TCP or UDP (or carrier pigeons), however it seems UDP is more common amongst the programmes that communicate using the OSC protocol. the osc-examples.lisp file contains a few simple examples of how to send and recieve OSC via UDP, and so far seems reasonably compatible with the packets send from/to max-msp, pd, supercollider and liblo. more details about OSC can be found at http://www.cnmat.berkeley.edu/OpenSoundControl/
+This is a common lisp implementation of the Open Sound Control Protocol aka OSC. The code should be close to the ansi standard, and does not rely on any external code/ffi/etc+ to do the basic encoding and decoding of packets. since OSC does not specify a transport layer, messages can be send using TCP or UDP (or carrier pigeons), however it seems UDP is more common amongst the programmes that communicate using the OSC protocol. the osc-examples.lisp file contains a few simple examples of how to send and recieve OSC via UDP, and so far seems reasonably compatible with the packets send from/to max-msp, pd, supercollider and liblo. more details about OSC can be found at https://opensoundcontrol.org/
+
+The devices/examples/osc-device-examples.lisp contains examples of a higher-level API for sending and receiving OSC messages.
 
 the current version of this code is avilable from github
 
-    git clone https://github.com/zzkt/osc 
+`git clone https://github.com/zzkt/osc`
 
 or via quicklisp.. .
 
-    (ql:quickload "osc")
+`(ql:quickload "osc")`
 
 ## limitations
 
-  - doesn't send nested bundles or syncronisable timetags
-  - will raise an exception if the input is malformed
+  - will raise an exception if input is malformed
   - doesn't do any pattern matching on addresses
-  - float en/decoding only tested on sbcl, cmucl, openmcl and allegro 
+  - float en/decoding only tested on sbcl, cmucl, openmcl and allegro
   - only supports the type(tag)s specified in the OSC spec
 
 ## things to do in :osc
@@ -31,16 +32,23 @@ or via quicklisp.. .
   - add namespace exploration using cl-zeroconf
 
 # changes
+  - 2022-08-22
+     - version 0.6
+     - further improvements from jamieforth
   - 2019-04-02
      - encoder/decoder refactoring from Javier Olaechea @PuercoPop
   - 2017-12-10
      - osc-examples use usocket for portability from @boqs
   - 2015-08-25
      - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
-   - 2015-08-21
-     - implement nested bundles from jamieforth https://github.com/jamieforth
+  - 2015-08-21
+     - implement nested bundles
   - 2011-04-19
      - converted repo from darcs->git
+  - 2010-09-25
+     - add osc-devices API from jamieforth
+  - 2010-09-10
+     - timetag improvements from jamieforth https://github.com/jamieforth/osc
   - 2007-02-20
      - version 0.5
      - Allegro CL float en/decoding from vincent akkermans <vincent.akkermans@gmail.com>
@@ -75,4 +83,3 @@ or via quicklisp.. .
      - tests in osc-tests.lisp
   - 2004-12-18
      - initial version, single args only
-

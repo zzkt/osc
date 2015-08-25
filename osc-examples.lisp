@@ -5,7 +5,7 @@
 ;; Copyright (C) 2004 FoAM vzw
 ;;
 ;; Authors
-;;  - nik gaffney <nik@f0.am>
+;;  - nik gaffney <nik@fo.am>
 ;;
 ;;;;; ;; ;     ;    ;;    ;             ;
 
@@ -17,76 +17,72 @@
 ;;  work with trivial-sockets, acl-compat or something similar. They should be
 ;;  able to explain enough to get you started. ..
 ;;
-;;  eg. listen on port 6667 for incoming msgs
+;;  eg. listen on port 6667 for incoming messages
 ;;
-;;   (osc-receive-test 6667)
-;;  eg. send a test message to localhost port 6668
-;;
-;;   (osc-send-test #(127 0 0 1) 6668)
+;;   (osc-listen 6667)
 ;;
 ;;  eg. listen on port 6667 and send to 10.0.89:6668
 ;;     note the ip# is formatted as a vector
 ;;
-;;   (osc-reflector-test 6667 #(10 0 0 89) 6668)
+;;   (osc-reflector 6667 #(10 0 0 89) 6668)
 ;;
 ;;;;;:::;;: ;     ; ;::: ;     ;; ;;     ;        ;;      ;
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (ql:quickload :osc)
-  (ql:quickload :usocket)
-  (defpackage osc-examples (:use :cl :osc :usocket)))
-(in-package :osc-examples)
+(require :sb-bsd-sockets)
+(use-package :osc)
+(use-package :sb-bsd-sockets)
 
-(defun osc-receive-test (port)
-  "a basic test function which attempts to decode an osc message on given port.
-  note ip#s need to be in the format #(127 0 0 1) for now.. ."
-  (let ((s (socket-connect nil nil
-			   :local-port port
-			   :local-host #(127 0 0 1)
-			   :protocol :datagram
-			   :element-type '(unsigned-byte 8)))
-	(buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
+
+(defun osc-listen (port)
+  "a basic test function which attempts to decode an osc message a given port."
+  (let ((s (make-udp-socket))
+        (buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
+    (socket-bind s #(0 0 0 0) port)
     (format t "listening on localhost port ~A~%~%" port)
     (unwind-protect
-	 (loop do
-	      (socket-receive s buffer (length buffer))
-	      (format t "received -=> ~S~%" (osc:decode-bundle buffer)))
+         (loop do
+              (socket-receive s buffer nil)
+              (format t "receiveded -=> ~S~%" (osc:decode-bundle buffer)))
       (when s (socket-close s)))))
 
-(defun osc-send-test (host port)
-  "a basic test function which sends osc test message to a given port/hostname.
-  note ip#s need to be in the format #(127 0 0 1) for now.. ."
-  (let ((s (socket-connect host port
-			   :protocol :datagram
-			   :element-type '(unsigned-byte 8)))
-	(b (osc:encode-message "/foo/bar" "baz" 1 2 3 (coerce PI 'single-float))))
-    (format t "sending to ~a on port ~A~%~%" host port)
-    (unwind-protect
-	 (socket-send s b (length b))
-      (when s (socket-close s)))))
 
-(defun osc-reflector-test (listen-port send-host send-port)
+(defun osc-reflector (listen-port send-ip send-port)
   "reflector.. . listens on a given port and sends out on another
-  note ip#s need to be in the format #(127 0 0 1) for now.. ."
-  (let ((in (socket-connect nil nil
-			    :local-port listen-port
-			    :local-host #(127 0 0 1)
-			    :protocol :datagram
-			    :element-type '(unsigned-byte 8)))
-	(out (socket-connect send-host send-port
-			     :protocol :datagram
-			     :element-type '(unsigned-byte 8)))
-	(buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
-    (unwind-protect
-	 (loop do
-	      (socket-receive in buffer (length buffer))
-	      (format t "glonked -=> message: ~{~A, ~}~%"
-		      (osc:decode-bundle buffer))
-	      (let ((mess (apply #'osc:encode-message
-				 (cons "/echo"
-				       (osc:decode-message buffer)))))
-		(socket-send out mess (length mess))))
-      (when in (socket-close in))
-      (when out (socket-close out)))))
+   note ip#s need to be in the format #(127 0 0 1) for now.. ."
+  (let ((in (make-udp-socket))
+        (out (make-udp-socket))
+        (buffer (make-sequence '(vector (unsigned-byte 8)) 512)))
+    (socket-bind in #(0 0 0 0) listen-port)
+    (socket-connect out send-ip send-port)
+    (let ((stream
+           (socket-make-stream
+            out :input t :output t
+            :element-type '(unsigned-byte 8) :buffering :full)))
+      (unwind-protect
+           (loop do
+                (socket-receive in buffer nil)
+                (let ((oscuff (osc:decode-bundle buffer)))
+                  (format t "glonked -=> message with ~S~% arg(s)"
+                          (length oscuff))
+                  (write-stream-t1 stream oscuff)))
+        (when in (socket-close in))
+        (when out (socket-close out))))))
+
+
+(defun make-udp-socket()
+  (make-instance 'inet-socket :type :datagram :protocol :udp))
+
+(defun write-stream-t1 (stream osc-message)
+  "writes a given message to a stream. keep in mind that when using a
+   buffered stream any funtion writing to the stream should
+   call (finish-output stream) after it sends the mesages,. ."
+  (write-sequence
+   (osc:encode-message "/bzzp" "got" "it" )
+   stream)
+  (finish-output stream))
+
+(defmacro osc-write-to-stream (stream &body args)
+  `(progn (write-sequence (osc:encode-message ,@args) ,stream)
+          (finish-output ,stream)))
 
 ;end
