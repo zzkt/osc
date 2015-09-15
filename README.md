@@ -6,9 +6,9 @@ the current version of this code is avilable from github
 
     git clone https://github.com/zzkt/osc 
 
-or via asdf-install.. .
+or via quicklisp.. .
 
-    (asdf-install:install :osc)
+    (ql:quickload "osc")
 
 ## limitations
 
