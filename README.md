@@ -33,6 +33,8 @@ or via quicklisp.. .
 
 # changes
 
+  - 2015-08-25
+     - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
   - 2011-04-19
      - converted repo from darcs->git
   - 2007-02-20
