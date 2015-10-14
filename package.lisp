@@ -6,6 +6,7 @@
    #:message
    #:make-bundle
    #:bundle
+   #:format-osc-data
    #:command
    #:args
    #:timetag
@@ -46,10 +47,13 @@
    #:make-osc-transmitter           ; transmitters
    #:connect
    #:send
+   #:send-msg
    #:send-bundle
    #:send-to
+   #:send-msg-to
    #:send-bundle-to
    #:send-all
+   #:send-msg-all
    #:send-bundle-all
    #:make-osc-client                ; clients
    #:make-client-responders
