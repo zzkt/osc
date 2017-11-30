@@ -22,7 +22,7 @@
 ;;   (osc-receive-test 6667)
 ;;  eg. send a test message to localhost port 6668
 ;;
-;;   (osc-send-test "localhost" 6668)
+;;   (osc-send-test #(127 0 0 1) 6668)
 ;;
 ;;  eg. listen on port 6667 and send to 10.0.89:6668
 ;;     note the ip# is formatted as a vector
@@ -34,13 +34,14 @@
 (eval-when (:compile-toplevel :load-toplevel)
   (ql:quickload :osc)
   (ql:quickload :usocket)
-  (use-package :osc)
-  (use-package :usocket))
+  (defpackage osc-examples (:use :cl :osc :usocket)))
+(in-package :osc-examples)
 
-(defun osc-listen-test (port)
+(defun osc-receive-test (port)
   "a basic test function which attempts to decode an osc message a given port."
   (let ((s (socket-connect nil nil
 			   :local-port port
+			   :local-host #(127 0 0 1)
 			   :protocol :datagram
 			   :element-type '(unsigned-byte 8)))
 	(buffer (make-sequence '(vector (unsigned-byte 8)) 1024)))
@@ -57,7 +58,7 @@
 			   :protocol :datagram
 			   :element-type '(unsigned-byte 8)))
 	(b (osc:encode-message "/foo/bar" "baz" 1 2 3 (coerce PI 'single-float))))
-    (format t "listening on localhost port ~A~%~%" port)
+    (format t "sending to ~a on port ~A~%~%" host port)
     (unwind-protect
 	 (socket-send s b (length b))
       (when s (socket-close s)))))
@@ -66,6 +67,7 @@
   "reflector.. . listens on a given port and sends out on another"
   (let ((in (socket-connect nil nil
 			    :local-port listen-port
+			    :local-host #(127 0 0 1)
 			    :protocol :datagram
 			    :element-type '(unsigned-byte 8)))
 	(out (socket-connect send-host send-port
