@@ -39,7 +39,8 @@
 (in-package :osc-examples)
 
 (defun osc-receive-test (port)
-  "a basic test function which attempts to decode an osc message a given port."
+  "a basic test function which attempts to decode an osc message on given port.
+  note ip#s need to be in the format #(127 0 0 1) for now.. ."
   (let ((s (socket-connect nil nil
                            :local-port port
                            :local-host #(127 0 0 1)
@@ -55,7 +56,8 @@
 
 
 (defun osc-send-test (host port)
-  "a basic test function which sends osc test message to a given port/hostname."
+  "a basic test function which sends osc test message to a given port/hostname.
+  note ip#s need to be in the format #(127 0 0 1) for now.. ."
   (let ((s (socket-connect host port
                            :protocol :datagram
                            :element-type '(unsigned-byte 8)))
@@ -67,7 +69,8 @@
 
 
 (defun osc-reflector-test (listen-port send-host send-port)
-  "reflector. listens on a given port and sends out on another."
+  "reflector. listens on a given port and sends out on another.
+   note ip#s need to be in the format #(127 0 0 1) for now.. ."
   (let ((in (socket-connect nil nil
                             :local-port listen-port
                             :protocol :datagram
