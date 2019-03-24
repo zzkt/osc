@@ -309,37 +309,23 @@
 	      (elt s 3))))
     i))
 
-(defun encode-int32 (i)
-  "convert an integer into a sequence of 4 bytes in network byte order."
-  (declare (type integer i))
-  (let ((buf (make-sequence 
-	      '(vector (unsigned-byte 8)) 4)))
-    (macrolet ((set-byte (n)
-		 `(setf (elt buf ,n)
-			(logand #xff (ash i ,(* 8 (- n 3)))))))
-      (set-byte 0)
-      (set-byte 1)
-      (set-byte 2)
-      (set-byte 3))
-    buf))
+(defmacro defint-encoder (num-of-octets &optional docstring)
+  (let ((enc-name (intern (format nil "~:@(encode-int~)~D" (* 8 num-of-octets))))
+        (buf (gensym))
+        (int (gensym)))
+    `(defun ,enc-name (,int)
+       ,@(when docstring
+           (list docstring))
+       (let ((,buf (make-array ,num-of-octets :element-type '(unsigned-byte 8))))
+         ,@(loop
+             for n below num-of-octets
+             collect `(setf (aref ,buf ,n)
+                            (ldb (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                 ,int)))
+         ,buf))))
 
-(defun encode-int64 (i)
-  "convert an integer into a sequence of 8 bytes in network byte order."
-  (declare (type integer i))
-  (let ((buf (make-sequence
-	      '(vector (unsigned-byte 8)) 8)))
-    (macrolet ((set-byte (n)
-		 `(setf (elt buf ,n)
-			(logand #xff (ash i ,(* 8 (- n 7)))))))
-      (set-byte 0)
-      (set-byte 1)
-      (set-byte 2)
-      (set-byte 3)
-      (set-byte 4)
-      (set-byte 5)
-      (set-byte 6)
-      (set-byte 7))
-    buf))
+(defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order.")
+(defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order.")
 
 (defun decode-uint64 (s)
   "8 byte -> 64 bit unsigned int"
