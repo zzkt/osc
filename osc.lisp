@@ -329,15 +329,15 @@
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint32 s)))
-    (if (>= i #x7fffffff)
-        (- 0 (- #x100000000 i))
+    (if (>= i #.(1- (expt 2 31)))
+        (- (- #.(expt 2 32) i))
 	i)))
 
 (defun decode-int64 (s)
   "8 byte -> 64 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint64 s)))
-    (if (>= i #x7fffffffffffffff)
-        (- 0 (- #x10000000000000000 i))
+    (if (>= i #.(1- (expt 2 63)))
+        (- (- #.(expt 2 64) i))
 	i)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary 
