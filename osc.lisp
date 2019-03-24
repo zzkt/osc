@@ -291,22 +291,24 @@
 				    (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
-(defun decode-int32 (s)
-  "4 byte -> 32 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 24)
-	      (ash (elt s 1) 16)
-	      (ash (elt s 2) 8)
-	      (elt s 3))))
-    (if (>= i #x7fffffff)
-        (- 0 (- #x100000000 i))
-	i)))
-
 (defun decode-uint32 (s)
   "4 byte -> 32 bit unsigned int"
   (let ((i (+ (ash (elt s 0) 24)
 	      (ash (elt s 1) 16)
 	      (ash (elt s 2) 8)
 	      (elt s 3))))
+    i))
+
+(defun decode-uint64 (s)
+  "8 byte -> 64 bit unsigned int"
+  (let ((i (+ (ash (elt s 0) 56)
+	      (ash (elt s 1) 48)
+	      (ash (elt s 2) 40)
+	      (ash (elt s 3) 32)
+	      (ash (elt s 4) 24)
+	      (ash (elt s 5) 16)
+	      (ash (elt s 6) 8)
+	      (elt s 7))))
     i))
 
 (defmacro defint-encoder (num-of-octets &optional docstring)
@@ -327,28 +329,16 @@
 (defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order.")
 (defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order.")
 
-(defun decode-uint64 (s)
-  "8 byte -> 64 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
-    i))
+(defun decode-int32 (s)
+  "4 byte -> 32 bit int -> two's complement (in network byte order)"
+  (let ((i (decode-uint32 s)))
+    (if (>= i #x7fffffff)
+        (- 0 (- #x100000000 i))
+	i)))
 
 (defun decode-int64 (s)
-  "8 byte -> 64 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
+  "8 byte -> 64 bit int -> two's complement (in network byte order)"
+  (let ((i (decode-uint64 s)))
     (if (>= i #x7fffffffffffffff)
         (- 0 (- #x10000000000000000 i))
 	i)))
