@@ -291,25 +291,22 @@
 				    (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
-(defun decode-uint32 (s)
-  "4 byte -> 32 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 24)
-	      (ash (elt s 1) 16)
-	      (ash (elt s 2) 8)
-	      (elt s 3))))
-    i))
+(defmacro defint-decoder (num-of-octets &optional docstring)
+  (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
+        (seq (gensym))
+        (int (gensym)))
+    `(defun ,decoder-name (,seq)
+       ,@(when docstring
+           (list docstring))
+       (let* ((,int 0)
+              ,@(loop
+                  for n below num-of-octets
+                  collect `(,int (dpb (aref ,seq ,n) (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                      ,int))))
+         int))))
 
-(defun decode-uint64 (s)
-  "8 byte -> 64 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
-    i))
+(defint-decoder 4 "4 byte -> 32 bit unsigned int")
+(defint-decoder 8 "8 byte -> 64 bit unsigned int")
 
 (defmacro defint-encoder (num-of-octets &optional docstring)
   (let ((enc-name (intern (format nil "~:@(encode-int~)~D" (* 8 num-of-octets))))
