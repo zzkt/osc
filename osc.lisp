@@ -370,10 +370,10 @@ with the current time use (encode-timetag :time)."
            (list docstring))
        (let ((,buf (make-array ,num-of-octets :element-type '(unsigned-byte 8))))
          ,@(loop
-             for n below num-of-octets
-             collect `(setf (aref ,buf ,n)
-                            (ldb (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
-                                 ,int)))
+                 for n below num-of-octets
+                 collect `(setf (aref ,buf ,n)
+                                (ldb (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                     ,int)))
          ,buf))))
 
 (defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order (32 bit).")
@@ -382,15 +382,15 @@ with the current time use (encode-timetag :time)."
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint32 s)))
-    (if (>= i #x7fffffff)
-        (- 0 (- #x100000000 i))
-	i)))
+    (if (>= i #.(1- (expt 2 31)))
+        (- (- #.(expt 2 32) i))
+        i)))
 
 (defun decode-int64 (s)
   "8 byte -> 64 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint64 s)))
-    (if (>= i #x7fffffffffffffff)
-        (- 0 (- #x10000000000000000 i))
+    (if (>= i #.(1- (expt 2 63)))
+        (- (- #.(expt 2 64) i))
         i)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary
