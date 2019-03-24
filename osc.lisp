@@ -352,37 +352,13 @@ with the current time use (encode-timetag :time)."
                                          (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
-<<<<<<< HEAD
-(defun decode-int32 (s)
-  "4 byte -> 32 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 24)
-              (ash (elt s 1) 16)
-              (ash (elt s 2) 8)
-              (elt s 3))))
-    (if (>= i #x7fffffff)
-        (- 0 (- #x100000000 i))
-        i)))
 
-=======
->>>>>>> d130e45 (Reuse uint decoders when possible)
 (defun decode-uint32 (s)
   "4 byte -> 32 bit unsigned int"
   (let ((i (+ (ash (elt s 0) 24)
               (ash (elt s 1) 16)
               (ash (elt s 2) 8)
               (elt s 3))))
-    i))
-
-(defun decode-uint64 (s)
-  "8 byte -> 64 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
     i))
 
 (defmacro defint-encoder (num-of-octets &optional docstring)
@@ -400,33 +376,9 @@ with the current time use (encode-timetag :time)."
                                  ,int)))
          ,buf))))
 
-(defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order.")
-(defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order.")
+(defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order (32 bit).")
+(defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order (64 bit).")
 
-<<<<<<< HEAD
-(defun decode-uint64 (s)
-  "8 byte -> 64 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 56)
-              (ash (elt s 1) 48)
-              (ash (elt s 2) 40)
-              (ash (elt s 3) 32)
-              (ash (elt s 4) 24)
-              (ash (elt s 5) 16)
-              (ash (elt s 6) 8)
-              (elt s 7))))
-    i))
-
-(defun decode-int64 (s)
-  "8 byte -> 64 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 56)
-              (ash (elt s 1) 48)
-              (ash (elt s 2) 40)
-              (ash (elt s 3) 32)
-              (ash (elt s 4) 24)
-              (ash (elt s 5) 16)
-              (ash (elt s 6) 8)
-              (elt s 7))))
-=======
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint32 s)))
@@ -437,11 +389,9 @@ with the current time use (encode-timetag :time)."
 (defun decode-int64 (s)
   "8 byte -> 64 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint64 s)))
->>>>>>> d130e45 (Reuse uint decoders when possible)
     (if (>= i #x7fffffffffffffff)
         (- 0 (- #x10000000000000000 i))
         i)))
-
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary
 
@@ -449,14 +399,6 @@ with the current time use (encode-timetag :time)."
   "encodes a string as a vector of character-codes, padded to 4 byte boundary"
   (cat (map 'vector #'char-code string)
        (string-padding string)))
-(ash (elt s 1) 48)
-(ash (elt s 2) 40)
-(ash (elt s 3) 32)
-(ash (elt s 4) 24)
-(ash (elt s 5) 16)
-(ash (elt s 6) 8)
-(elt s 7))))
-i))
 
 (defun decode-string (data)
   "converts a binary vector to a string and removes trailing #\nul characters"
@@ -505,4 +447,5 @@ i))
   (make-array n :initial-element 0 :fill-pointer n))
 
 (provide :osc)
+
 ;; end
