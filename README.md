@@ -32,8 +32,10 @@ or via quicklisp.. .
   - add namespace exploration using cl-zeroconf
 
 # changes
+  - 2019-04-02
+     - encoder/decoder refactoring from Javier Olaechea @PuercoPop
   - 2017-12-10
-     - osc-examples use usocket for portability (via @boqs)
+     - osc-examples use usocket for portability from @boqs
   - 2015-08-25
      - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
   - 2011-04-19
