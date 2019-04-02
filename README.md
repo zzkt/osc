@@ -38,7 +38,7 @@ or via quicklisp.. .
   - 2019-04-02
      - encoder/decoder refactoring from Javier Olaechea @PuercoPop
   - 2017-12-10
-     - osc-examples use usocket for portability from @boqs
+     - osc-examples converted to usocket for portability from @boqs
   - 2015-08-25
      - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
   - 2015-08-21
