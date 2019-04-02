@@ -12,7 +12,7 @@ or via quicklisp.. .
 
 ## limitations
 
-  - doesnt send nested bundles or syncronisable timetags
+  - doesn't send nested bundles or syncronisable timetags
   - will raise an exception if the input is malformed
   - doesn't do any pattern matching on addresses
   - float en/decoding only tested on sbcl, cmucl, openmcl and allegro 
