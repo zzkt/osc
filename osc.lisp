@@ -291,80 +291,53 @@
 				    (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
+(defmacro defint-decoder (num-of-octets &optional docstring)
+  (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
+        (seq (gensym))
+        (int (gensym)))
+    `(defun ,decoder-name (,seq)
+       ,@(when docstring
+           (list docstring))
+       (let* ((,int 0)
+              ,@(loop
+                  for n below num-of-octets
+                  collect `(,int (dpb (aref ,seq ,n) (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                      ,int))))
+         int))))
+
+(defint-decoder 4 "4 byte -> 32 bit unsigned int")
+(defint-decoder 8 "8 byte -> 64 bit unsigned int")
+
+(defmacro defint-encoder (num-of-octets &optional docstring)
+  (let ((enc-name (intern (format nil "~:@(encode-int~)~D" (* 8 num-of-octets))))
+        (buf (gensym))
+        (int (gensym)))
+    `(defun ,enc-name (,int)
+       ,@(when docstring
+           (list docstring))
+       (let ((,buf (make-array ,num-of-octets :element-type '(unsigned-byte 8))))
+         ,@(loop
+             for n below num-of-octets
+             collect `(setf (aref ,buf ,n)
+                            (ldb (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                 ,int)))
+         ,buf))))
+
+(defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order.")
+(defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order.")
+
 (defun decode-int32 (s)
-  "4 byte -> 32 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 24)
-	      (ash (elt s 1) 16)
-	      (ash (elt s 2) 8)
-	      (elt s 3))))
-    (if (>= i #x7fffffff)
-        (- 0 (- #x100000000 i))
+  "4 byte -> 32 bit int -> two's complement (in network byte order)"
+  (let ((i (decode-uint32 s)))
+    (if (>= i #.(1- (expt 2 31)))
+        (- (- #.(expt 2 32) i))
 	i)))
 
-(defun decode-uint32 (s)
-  "4 byte -> 32 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 24)
-	      (ash (elt s 1) 16)
-	      (ash (elt s 2) 8)
-	      (elt s 3))))
-    i))
-
-(defun encode-int32 (i)
-  "convert an integer into a sequence of 4 bytes in network byte order."
-  (declare (type integer i))
-  (let ((buf (make-sequence 
-	      '(vector (unsigned-byte 8)) 4)))
-    (macrolet ((set-byte (n)
-		 `(setf (elt buf ,n)
-			(logand #xff (ash i ,(* 8 (- n 3)))))))
-      (set-byte 0)
-      (set-byte 1)
-      (set-byte 2)
-      (set-byte 3))
-    buf))
-
-(defun encode-int64 (i)
-  "convert an integer into a sequence of 8 bytes in network byte order."
-  (declare (type integer i))
-  (let ((buf (make-sequence
-	      '(vector (unsigned-byte 8)) 8)))
-    (macrolet ((set-byte (n)
-		 `(setf (elt buf ,n)
-			(logand #xff (ash i ,(* 8 (- n 7)))))))
-      (set-byte 0)
-      (set-byte 1)
-      (set-byte 2)
-      (set-byte 3)
-      (set-byte 4)
-      (set-byte 5)
-      (set-byte 6)
-      (set-byte 7))
-    buf))
-
-(defun decode-uint64 (s)
-  "8 byte -> 64 bit unsigned int"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
-    i))
-
 (defun decode-int64 (s)
-  "8 byte -> 64 bit int -> two's compliment (in network byte order)"
-  (let ((i (+ (ash (elt s 0) 56)
-	      (ash (elt s 1) 48)
-	      (ash (elt s 2) 40)
-	      (ash (elt s 3) 32)
-	      (ash (elt s 4) 24)
-	      (ash (elt s 5) 16)
-	      (ash (elt s 6) 8)
-	      (elt s 7))))
-    (if (>= i #x7fffffffffffffff)
-        (- 0 (- #x10000000000000000 i))
+  "8 byte -> 64 bit int -> two's complement (in network byte order)"
+  (let ((i (decode-uint64 s)))
+    (if (>= i #.(1- (expt 2 63)))
+        (- (- #.(expt 2 64) i))
 	i)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary 
