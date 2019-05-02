@@ -303,7 +303,7 @@
                   for n below num-of-octets
                   collect `(,int (dpb (aref ,seq ,n) (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
                                       ,int))))
-         int))))
+         ,int))))
 
 (defint-decoder 4 "4 byte -> 32 bit unsigned int")
 (defint-decoder 8 "8 byte -> 64 bit unsigned int")
