@@ -352,6 +352,19 @@ with the current time use (encode-timetag :time)."
                                          (ldb (byte 16 0) (decode-int32 s)))
   #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
 
+(defmacro defint-decoder (num-of-octets &optional docstring)
+  (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
+        (seq (gensym))
+        (int (gensym)))
+    `(defun ,decoder-name (,seq)
+       ,@(when docstring
+           (list docstring))
+       (let* ((,int 0)
+              ,@(loop
+                  for n below num-of-octets
+                  collect `(,int (dpb (aref ,seq ,n) (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                      ,int))))
+         ,int))))
 
 (defun decode-uint32 (s)
   "4 byte -> 32 bit unsigned int"
