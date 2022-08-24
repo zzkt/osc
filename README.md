@@ -24,11 +24,10 @@ or via quicklisp.. .
   - data checking and error handling
   - portable en/decoding of floats -=> ieee754 tests
   - doubles and other defacto typetags
-  - correct en/decoding of timetags
 
 ## things to do in :osc-ex[tensions|tras]
 
-  - liblo like network wrapping 
+  - liblo like network wrapping
   - add namespace exploration using cl-zeroconf
 
 # changes
@@ -38,18 +37,20 @@ or via quicklisp.. .
      - osc-examples use usocket for portability from @boqs
   - 2015-08-25
      - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
+   - 2015-08-21
+     - implement nested bundles from jamieforth https://github.com/jamieforth
   - 2011-04-19
      - converted repo from darcs->git
   - 2007-02-20
      - version 0.5
-     - Allegro CL float en/decoding from vincent akkermans <vincent.akkermans@gmail.com> 
+     - Allegro CL float en/decoding from vincent akkermans <vincent.akkermans@gmail.com>
   - 2006-02-11
      - version 0.4
-     - partial timetag implemetation 
+     - partial timetag implementation
   - 2005-12-05
      - version 0.3
      - fixed openmcl float bug (decode-uint32)
-  - 2005-11-29 
+  - 2005-11-29
      - version 0.2
      - openmcl float en/decoding
   - 2005-08-12
@@ -62,16 +63,16 @@ or via quicklisp.. .
      - bundle and blob en/de- coding
   - 2005-03-05
      - 'declare' scattering and other optimisations
-  - 2005-02-08  
+  - 2005-02-08
      - in-package'd
      - basic dispatcher
   - 2005-03-01
      - fixed address string bug
-  - 2005-01-26 
+  - 2005-01-26
      - fixed string handling bug
-  - 2005-01-24 
+  - 2005-01-24
      - sends and receives multiple arguments
      - tests in osc-tests.lisp
-  - 2004-12-18 
+  - 2004-12-18
      - initial version, single args only
 
