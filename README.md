@@ -41,8 +41,8 @@ or via quicklisp.. .
      - osc-examples converted to usocket for portability from @boqs
   - 2015-08-25
      - support for 64bit ints from Erik Ronström https://github.com/erikronstrom
-  - 2015-08-21
-     - implement nested bundles
+   - 2015-08-21
+     - implement nested bundles from jamieforth https://github.com/jamieforth
   - 2011-04-19
      - converted repo from darcs->git
   - 2010-09-25
