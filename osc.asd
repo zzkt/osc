@@ -7,7 +7,7 @@
     :author "nik gaffney <nik@fo.am>"
     :licence "LLGPL"
     :description "The Open Sound Control protocol, aka OSC"
-    :version "0.6"
+    :version "0.7"
     :components
     ((:file "osc" :depends-on ("osc-data" "osc-time"))
      (:file "osc-data" :depends-on ("package"))
