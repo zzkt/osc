@@ -57,10 +57,13 @@
 ;;  - error catching, junk data
 
 (defun osc-test ()
-  (list
-   (osc-t2) (osc-t3) (osc-t4) (osc-t5) (osc-t6) (osc-t7) (osc-t8) (osc-t9)
-   (osc-t10) (osc-t11) (osc-t12) (osc-t13)
-   ))
+  (format t "osc tests: ~a"
+          (list
+           (osc-t2) (osc-t3) (osc-t4)
+           (osc-t5) (osc-t6) (osc-t7)
+           (osc-t8) (osc-t9) (osc-t10)
+           (osc-t11) (osc-t12) (osc-t13)))
+  T)
 
 (defun osc-t2 ()
   (equalp '("/dip/lop" 666)
@@ -121,19 +124,19 @@
              0    0    0    0))))
 
 (defun osc-t8 ()
-  (equalp (osc::encode-message "/blob/x" #(1 2 3 4 5 6 7 8 9))
+  (equalp (osc:encode-message "/blob/x" #(1 2 3 4 5 6 7 8 9))
           #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0)))
 
 (defun osc-t9 ()
   (equalp '("/blob/x" #(1 2 3 4 5 6 7 8 9))
-          (osc::decode-message
+          (osc:decode-message
            #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0))))
 
 (defun osc-t10 ()
-  (equalp '("/blob" #(1 29 32 43 54 66 78 81) 2 "lop")
+  (equalp '("/t/x" #(1 29 32 43 54 66 78 81) 2 "lop")
           (osc:decode-message
-           #(47 98 108 111 98 0 0 0 44 98 105 115 0 0 0 0
-             0 0 0 8 1 29 32 43 54 66 78 81 0 0 0 0 0 0 0 2 108 111 112 0))))
+            #(47 116 47 120 0 0 0 0 44 98 105 115 0 0 0 0 0 0 0 8 1 29 32 43 54
+              66 78 81 0 0 0 2 108 111 112 0))))
 
 (defun osc-t11 ()
   (equalp '(#(0 0 0 0 0 0 0 1) ("/string/a/ling" "slink" "slonk" "slank")

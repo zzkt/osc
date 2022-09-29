@@ -77,4 +77,5 @@
    #:address
    #:port
    #:peer-address
-   #:peer-port))
+   #:peer-port
+   #:run-tests))
