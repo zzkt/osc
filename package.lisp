@@ -1,6 +1,6 @@
 (defpackage :osc
-  (:use :cl :sb-bsd-sockets)
-  (:documentation "OSC aka the 'open sound control' protocol")
+  (:use #:cl #:usocket)
+  (:documentation "OSC, the 'Open Sound Control' protocol.")
   (:export
    #:make-message
    #:message

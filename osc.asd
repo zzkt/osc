@@ -1,12 +1,12 @@
 ;; -*- mode: lisp -*-
 
-(in-package #:common-lisp-user)
+(in-package #:cl-user)
 
 (asdf:defsystem osc
     :name "osc"
     :author "nik gaffney <nik@fo.am>"
-    :licence "LLGPL"
-    :description "The Open Sound Control protocol, aka OSC"
+    :licence "GPL v3"
+    :description "The Open Sound Control protocol aka OSC"
     :version "0.7"
     :components
     ((:file "osc" :depends-on ("osc-data" "osc-time"))
@@ -16,7 +16,7 @@
      (:file "package")
      (:module "devices"
               :depends-on ("package" "osc-data")
-              ::components
+              :components
               ((:file "socket-functions")
                (:file "device")
                (:file "transmitter"
