@@ -1,5 +1,5 @@
 (defpackage :osc
-  (:use #:cl #:usocket)
+  (:use :cl)
   (:documentation "OSC, the 'Open Sound Control' protocol.")
   (:export
    #:make-message

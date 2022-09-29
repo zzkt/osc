@@ -9,9 +9,11 @@
 ;; Authors
 ;;  - nik gaffney <nik@fo.am>
 
+(in-package :osc)
+
 #+sbcl (require 'sb-bsd-sockets)
 
-(defun osc-write ()
+#+sbcl (defun osc-write ()
   "a basic test function which sends various osc stuff on port 5555"
   (let ((sock (sb-bsd-sockets::make-instance
                'inet-socket
@@ -146,8 +148,8 @@
 
 
 
-(defun osc-read (port)
-  "a basic test function which attempts to decode osc stuff on port xc"
+#+sbcl (defun osc-read (port)
+  "a basic test function which attempts to decode osc stuff on PORT."
   (let ((s (make-instance 'inet-socket
                           :type :datagram
                           :protocol (get-protocol-by-name "udp")))
@@ -159,7 +161,7 @@
     (osc:decode-message buffer)
     ))
 
-                                        ;(osc-decode-message data)
+;;(osc-decode-message data)
 
 (defun osc-ft ()
   (and (eql (osc::DECODE-FLOAT32 #(63 84 32 93))  0.8286188)
@@ -189,8 +191,6 @@
   (setf cons-msg (osc:decode-message packed-msg))
   (osc:encode-message (values-list cons-msg)))
 
-;;
-
 
 #|
 sc3 server
@@ -209,4 +209,5 @@ sc3 server
 
 |#
 
-;; (osc-test)
+(defun run-tests ()
+  (osc-test))
