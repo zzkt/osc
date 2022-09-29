@@ -14,6 +14,7 @@
    (:file "osc-data" :depends-on ("package"))
    (:file "osc-dispatch" :depends-on ("osc"))
    (:file "osc-time" :depends-on ("package"))
+   (:file "osc-tests" :depends-on ("osc"))
    (:file "package")
    (:module "devices"
     :depends-on ("package" "osc-data")
