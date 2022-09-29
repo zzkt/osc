@@ -22,9 +22,10 @@
   "Returns a fixed-point 64 bit NTP-style timetag, where the top 32
 bits represent seconds since midnight 19000101, and the bottom 32 bits
 represent the fractional parts of a second."
-  (multiple-value-bind (secs usecs)
-      (sb-ext:get-time-of-day)
-    (the timetag (unix-secs+usecs->timetag secs usecs))))
+  #+sbcl (multiple-value-bind (secs usecs)
+             (sb-ext:get-time-of-day)
+           (the timetag (unix-secs+usecs->timetag secs usecs)))
+  #-sbcl (error "Can't encode timetags using this implementation."))
 
 (defun timetag+ (original seconds-offset)
   (declare (type timetag original))
@@ -39,9 +40,10 @@ represent the fractional parts of a second."
 (defun get-unix-time ()
   "Returns a a double-float representing real-time now in seconds,
 with microsecond precision, relative to 19700101."
-  (multiple-value-bind (secs usecs)
-      (sb-ext:get-time-of-day)
-    (the double-float (+ secs (microseconds->subsecs usecs)))))
+  #+sbcl (multiple-value-bind (secs usecs)
+             (sb-ext:get-time-of-day)
+           (the double-float (+ secs (microseconds->subsecs usecs))))
+  #-sbcl (error "Can't encode timetags using this implementation."))
 
 (defun unix-time->timetag (unix-time)
   (multiple-value-bind (secs subsecs)

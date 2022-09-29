@@ -341,7 +341,7 @@ with the current time use (encode-timetag :time)."
   #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
   #+allegro (encode-int32 (multiple-value-bind (x y) (excl:single-float-to-shorts f)
                             (+ (ash x 16) y)))
-  #-(or sbcl cmucl openmcl allegro) (error "cant encode floats using this implementation"))
+  #-(or sbcl cmucl openmcl allegro) (error "Can't encode floats using this implementation."))
 
 (defun decode-float32 (s)
   "ieee754 float from a vector of 4 bytes in network byte order"
@@ -350,7 +350,7 @@ with the current time use (encode-timetag :time)."
   #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 s))
   #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-int32 s))
                                          (ldb (byte 16 0) (decode-int32 s)))
-  #-(or sbcl cmucl openmcl allegro) (error "cant decode floats using this implementation"))
+  #-(or sbcl cmucl openmcl allegro) (error "Can't decode floats using this implementation."))
 
 (defmacro defint-decoder (num-of-octets &optional docstring)
   (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
