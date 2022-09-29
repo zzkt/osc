@@ -16,9 +16,9 @@ jobs:
     strategy:
       matrix:
       # current ccl-bin has a flaky zip file, so roswell can't install it.
-      # Specify a version that works for now. #- cmucl, allegro, ccl
-        lisp: [sbcl-bin, ecl, clisp]
-        os: [ windows-latest, ubuntu-latest, macos-latest]
+      # Specify a version that works for now. #- cmucl, allegro, ccl, ecl, clisp
+        lisp: [sbcl-bin]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     # run the job on every combination of "lisp" and "os" above
     runs-on: ${{ matrix.os }}
