@@ -57,7 +57,7 @@
 ;;  - error catching, junk data
 
 (defun osc-test ()
-  (format t "osc tests: ~a"
+  (format t "some osc tests: ~a"
           (list
            (osc-t2) (osc-t3) (osc-t4)
            (osc-t5) (osc-t6) (osc-t7)
