@@ -9,6 +9,9 @@ on:
   pull_request:
     branches: [ endless ]
 
+# keep track of failures 
+fail-fast: false
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   test:
@@ -17,7 +20,7 @@ jobs:
       matrix:
       # current ccl-bin has a flaky zip file, so roswell can't install it.
       # Specify a version that works for now. #- cmucl, allegro, ccl, ecl, clisp
-        lisp: [sbcl-bin, ccl]
+        lisp: [sbcl-bin, ccl, ecl, allegro, clisp]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     # run the job on every combination of "lisp" and "os" above
