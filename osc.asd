@@ -17,6 +17,7 @@
    (:file "osc-tests" :depends-on ("osc"))
    (:file "package")
    (:module "devices"
+    :if-feature :sbcl
     :depends-on ("package" "osc-data")
     :components
             ((:file "socket-functions")

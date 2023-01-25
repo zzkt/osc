@@ -20,6 +20,7 @@ There are some basic examples in `osc-examples.lisp` and the `devices/examples/o
   - will raise an exception if input is malformed
   - no pattern matching on addresses
   - float en/decoding only tested on sbcl, cmucl, openmcl and allegro
+  - the `devices` module only works on sbcl
   - only supports the type(tag)s specified in the OSC spec
 
 ## things to do in :osc
