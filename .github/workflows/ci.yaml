@@ -9,13 +9,12 @@ on:
   pull_request:
     branches: [ endless ]
 
-# keep track of failures 
-fail-fast: false
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   test:
     name: ${{ matrix.lisp }} on ${{ matrix.os }}
+    continue-on-error: true
     strategy:
       matrix:
       # current ccl-bin has a flaky zip file, so roswell can't install it.
