@@ -65,7 +65,7 @@ with microsecond precision, relative to 19700101."
   (coerce (/ usecs  +usecs+) 'double-float))
 
 (defun subsecs->microseconds (subsecs)
-  (declare (type (float 0 1) subsecs))
+  (declare (type (float 0.0 1.0) subsecs))
   (round (* subsecs +usecs+)))
 
 (defun int32->subsecs (int32)
