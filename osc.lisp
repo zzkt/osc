@@ -425,7 +425,6 @@ with the current time use (encode-timetag :time)."
   "encodes a blob from a given vector"
   (let ((bl (length blob)))
     (cat (encode-int32 bl) blob
-         <<<<<<< HEAD
          (pad (padding-length bl)))))
 
 (defun decode-blob (blob)
