@@ -17,7 +17,7 @@ jobs:
       matrix:
       # current ccl-bin has a flaky zip file, so roswell can't install it.
       # Specify a version that works for now.
-        lisp: [ sbcl-bin ]
+        lisp: [ sbcl-bin, ccl, ecl, clisp, allegro, cmucl ]
         os: [ windows-latest, ubuntu-latest, macos-latest ]
 
     # run the job on every combination of "lisp" and "os" above
