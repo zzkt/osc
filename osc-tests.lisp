@@ -1,51 +1,37 @@
 ;; -*- mode: lisp -*-
 ;;
-;; Quick and dirty tests for cl-osc
+;; Various tests for cl-osc using 5am
 ;;
-;; You are granted the rights to distribute and use this software
-;; as governed by the terms of GNU Public License (aka the GPL)
-;; see the LICENCE file.
-
 ;; Authors
 ;;  - nik gaffney <nik@fo.am>
 
-(require "usocket")
+(defpackage :osc/tests
+  (:use :cl :osc :fiveam))
 
-(defun osc-write ()
-  "a basic test function which sends various osc stuff on port 5555"
-  (let ((sock (sb-bsd-sockets::make-instance
-               'inet-socket
-               :type :datagram
-               :protocol :udp)))
-    (sb-bsd-sockets::socket-connect sock #(127 0 0 1) 5555)
-    (let ((stream
-            (sb-bsd-sockets::socket-make-stream
-             sock
-             :input t
-             :output t
-             :element-type '(unsigned-byte 8)
-             :buffering :full)))
-      (prin1 "int? ")
-      (write-sequence (oti) stream)
-      (force-output stream)
-      (prin1 "float? ")
-      (write-sequence (otf) stream)
-      (force-output stream)
-      (prin1 "string?")
-      (write-sequence (ots) stream)
-      (force-output stream)
-      (prin1 "mutliple args?")
-      (write-sequence (otm) stream)
-      (force-output stream)
-      (sb-bsd-sockets::socket-close sock)
-      )))
+(in-package :osc/tests)
 
-(defun oti () (osc:encode-message "/test/int" 3))
-(defun otf () (osc:encode-message "/test/float" 4.337))
-(defun ots () (osc:encode-message "/test/string" "wonky_stringpuk"))
-(defun otbl () (osc:encode-message "/test/blob" #(0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
-(defun otm ()  (osc:encode-message "/test/multi 5.78 1" "five point seven eight" "and one"))
-(defun otbn () (osc-encode-bundle (osc-make-test-bundle)))
+;; (in-package :osc)
+;; (require "fiveam")
+
+;; setup various test suites
+
+(def-suite synchroscope
+  :description "OSC test suite(s).")
+
+(def-suite data-encoding
+  :description "Test encoding and decoding of OSC data types."  :in synchroscope)
+
+(def-suite message-encoding
+  :description "Test encoding and decoding of OSC messages."  :in synchroscope)
+
+(def-suite protocol-v1.0
+  :description "OSC v1.0 compatibility."  :in synchroscope)
+
+(def-suite protocol-v1.1
+  :description "OSC v1.1 compatibility."  :in synchroscope)
+
+(def-suite interoperability
+  :description "Test interoperability (e.g. supercollider & pd)"  :in synchroscope)
 
 ;; test todo
 ;;  - negative floats
@@ -53,144 +39,259 @@
 ;;  - blobs, and long args
 ;;  - byte aligning 0,1,2,3,4 mod
 ;;  - error catching, junk data
+;;  - edge cases?
 
-(defun osc-test ()
-  (format t "osc tests: ~a"
-          (list
-           (osc-t2) (osc-t3) (osc-t4)
-           (osc-t5) (osc-t6) (osc-t7)
-           (osc-t8) (osc-t9) (osc-t10)
-           (osc-t11) (osc-t12) (osc-t13)))
-  T)
+(in-suite data-encoding)
 
-(defun osc-t2 ()
-  (equalp '("/dip/lop" 666)
-          (osc:decode-message #(47 100 105 112 47 108 111 112 0 0 0 0 44 105 0 0 0 0 2 154))))
+;; required data types
+(test osc-int32
+  "OSC int32 encoding tests."
+  (is (equalp
+       (osc::encode-int32 16843009) #(1 1 1 1)))
+  (is (equalp
+       (osc::decode-int32 #(1 1 11 111)) 16845679))
+  (is (equalp
+       (osc::encode-int32 -16843010) #(254 254 254 254)))
+  (is (equalp
+       (osc::decode-int32 #(255 255 255 255)) -1)))
 
-(defun osc-t3 ()
-  (equalp '#(0 0 0 3 116 101 115 116 0 0 0 0 0 0 0 2 0 0 0 1 64 159 92 41)
-          (osc::encode-data '(3 "test" 2 1 4.98))))
+(test osc-float32
+  "OSC float32 encoding tests."
+  (is (equalp
+       (osc::encode-float32 1.00001) #(63 128 0 84)))
+  (is (equalp
+       (osc::decode-float32  #(1 1 1 1)) 2.3694278e-38))
+  (is (equalp
+       (osc::encode-float32 -2.3694278e33) #(246 233 164 196)))
+  (is (equalp
+       (osc::decode-float32  #(254 254 254 254)) -1.6947395e38)))
 
-(defun osc-t4 ()
-  (equalp #(44 105 115 102 0 0 0 0)
-          (osc::encode-typetags '(1 "terrr" 3.4))))
+(test osc-string
+  "OSC string encoding tests."
+  (is (equalp
+       (osc::decode-string #(110 117 108 108 32 112 97 100 100 101 100 0))
+       "null padded"))
+  (is (equalp
+       (osc::encode-string "OSC string encoding test")
+       #(79  83 67  32  115 116 114 105 110 103 32  101
+         110 99 111 100 105 110 103 32  116 101 115 116 0 0 0 0))))
 
-(defun osc-t5 ()
-  (equalp #(44 105 105 102 0 0 0 0)
-          (osc::encode-typetags '(1 2 3.3))))
+;; blob
+;;   (osc::encode-blob "THE BLOB")
 
-(defun osc-t6 ()
-  (equal '("/test/one" 1 2 3.3)
-         (osc:decode-message #(47 116 101 115 116 47 111 110 101 0 0 0 44 105 105 102 0 0 0 0 0 0 0 1 0 0 0 2 64 83 51 51))))
+(test osc-blob
+  "OSC blob encoding tests."
+  (is (equalp
+       (osc::encode-blob #(1 1 1 1)) #(0 0 0 4 1 1 1 1))))
 
-(defun osc-t7 ()
-  (equalp '(#(0 0 0 0 0 0 0 1) ("/voices/0/tm/start" 0.0)
-            ("/foo/stringmessage" "a" "few" "strings") ("/documentation/all-messages"))
-          (osc:decode-bundle
-           #(#x23 #x62 #x75 #x6e
-             #x64 #x6c #x65 0
-             0    0    0    0
-             0    0    0    #x1
-             0    0    0    #x20
-             #x2f #x64 #x6f #x63
-             #x75 #x6d #x65 #x6e
-             #x74 #x61 #x74 #x69
-             #x6f #x6e #x2f #x61
-             #x6c #x6c #x2d #x6d
-             #x65 #x73 #x73 #x61
-             #x67 #x65 #x73 0
-             #x2c 0    0    0
-             0    0    0    #x2c
-             #x2f #x66 #x6f #x6f
-             #x2f #x73 #x74 #x72
-             #x69 #x6e #x67 #x6d
-             #x65 #x73 #x73 #x61
-             #x67 #x65 0    0
-             #x2c #x73 #x73 #x73
-             0    0    0    0
-             #x61 0    0    0
-             #x66 #x65 #x77 0
-             #x73 #x74 #x72 #x69
-             #x6e #x67 #x73 0
-             0    0    0    #x1c
-             #x2f #x76 #x6f #x69
-             #x63 #x65 #x73 #x2f
-             #x30 #x2f #x74 #x6d
-             #x2f #x73 #x74 #x61
-             #x72 #x74 0    0
-             #x2c #x66 0    0
-             0    0    0    0))))
+(test osc-timetag
+  "OSC timetag encoding tests."
+  (is (equalp
+       (osc::encode-timetag :now) #(0 0 0 0 0 0 0 1))))
 
-(defun osc-t8 ()
-  (equalp (osc::encode-message "/blob/x" #(1 2 3 4 5 6 7 8 9))
-          #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0)))
+(test osc-int64
+  "OSC int64 encoding tests."
+  (is (equalp
+       (osc::encode-int64 16843009) #(0 0 0 0 1 1 1 1)))
+  (is (equalp
+       (osc::decode-int64 #(1 1 1 1 1 1 1 1)) 72340172838076673))
+  (is (equalp
+       (osc::encode-int64 -8000000000000000008) #(144 250 74 98 196 223 255 248)))
+  (is (equalp
+       (osc::decode-int64 #(254 1 254 1 254 1 254 1)) -143554428589179391)))
 
-(defun osc-t9 ()
-  (equalp '("/blob/x" #(1 2 3 4 5 6 7 8 9))
-          (osc::decode-message
-           #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0))))
+(test osc-float64
+  "OSC float64 encoding tests."
+  (is (equalp
+       (osc::encode-float64 23.1d0) #(64 55 25 153 153 153 153 154)))
+  (is (equalp
+       (osc::decode-float64 #(64 55 25 153 153 153 153 154)) 23.1d0))
+  (is (equalp
+       (osc::encode-float64 2.31d55) #(75 110 37 155 172 119 156 244)))
+  (is (equalp
+       (osc::decode-float64 #(65 225 53 249 176 0 0 0)) 2.31d9)))
 
-(defun osc-t10 ()
-  (equalp '("/blob" #(1 29 32 43 54 66 78 81) 2 "lop")
-          (osc:decode-message
-           #(47 98 108 111 98 0 0 0 44 98 105 115 0 0 0 0
-             0 0 0 8 1 29 32 43 54 66 78 81 0 0 0 0 0 0 0 2 108 111 112 0))))
+;; empty messages tagged T, F, N, I
 
-(defun osc-t11 ()
-  (equalp '(#(0 0 0 0 0 0 0 1) ("/string/a/ling" "slink" "slonk" "slank")
-            ("/we/wo/w" 1 2 3.4) ("/blob" #(1 29 32 43 54 66 78 81 90) "lop" -0.44))
-          (osc:decode-bundle
-           #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 40 47 98 108 111 98 0 0 0
-             44 98 115 102 0 0 0 0 0 0 0 9 1 29 32 43 54 66 78 81 90 0 0 0 108 111 112 0
-             190 225 71 174 0 0 0 32 47 119 101 47 119 111 47 119 0 0 0 0 44 105 105 102 0
-             0 0 0 0 0 0 1 0 0 0 2 64 89 153 154 0 0 0 48 47 115 116 114 105 110 103 47 97
-             47 108 105 110 103 0 0 44 115 115 115 0 0 0 0 115 108 105 110 107 0 0 0 115
-             108 111 110 107 0 0 0 115 108 97 110 107 0 0 0))))
+(in-suite message-encoding)
 
+;; messages
 
+(test osc-message-1
+  "OSC message encoding tests. address and single int."
+  :suite 'message-encoding
+  (is (equalp
+       '("/test/int" -1)
+       (osc:decode-message #(47 116 101 115 116 47 105 110 116 0 0 0 44 105 0 0 255 255 255 255)))))
 
-#+sbcl (defun osc-read (port)
-  "A basic test function which attempts to decode osc stuff on PORT."
-  (let ((s (make-instance 'inet-socket
-                          :type :datagram
-                          :protocol (get-protocol-by-name "udp")))
-        (buffer (make-sequence '(vector (unsigned-byte 8)) 512)))
-    (format t "Socket type is ~A on port ~A~%" (sockopt-type s) port)
-    (socket-bind s #(127 0 0 1) port)
-    (socket-receive s buffer nil :waitall t)
-    (socket-close s)
-    (osc:decode-message buffer)
-    ))
+;; check padding boundaries. 1-3 or 1-4?
+(test osc-t4
+  "OSC typetag encoding test. string, ints and floats."
+  (is (equalp
+       #(44 105 115 102 0 0 0 0)
+       (osc::encode-typetags '(1 "terrr" 3.4)))))
 
-;;(osc-decode-message data)
+(test osc-t5
+  "OSC typetag encoding test. ints and floats."
+  (is (equalp
+       #(44 105 105 102 0 0 0 0)
+       (osc::encode-typetags '(1 2 3.3)))))
 
-(defun osc-ft ()
-  (and (eql (osc::DECODE-FLOAT32 #(63 84 32 93))  0.8286188)
-       (eql (osc::DECODE-FLOAT32 #(190 124 183 78)) -0.246793)))
+(test osc-t6
+  "OSC message decoding test. ints and floats."
+  (is (equalp
+       '("/test/one" 1 2 3.3)
+       (osc:decode-message
+        #(47  116 101 115 116 47  111 110
+          101 0   0   0   44  105 105 102
+          0   0   0   0   0   0   0   1
+          0   0   0   2   64  83  51  51)))))
+
+(test osc-t7
+  "OSC bundle decoding test. strings, ints and floats."
+  (is (equalp
+       '(#(0 0 0 0 0 0 0 1)
+         ("/voices/0/tm/start" 0.0)
+         ("/foo/stringmessage" "a" "few" "strings")
+         ("/documentation/all-messages"))
+       (osc:decode-bundle
+        #(#x23 #x62 #x75 #x6e
+          #x64 #x6c #x65 0
+          0    0    0    0
+          0    0    0    #x1
+          0    0    0    #x20
+          #x2f #x64 #x6f #x63
+          #x75 #x6d #x65 #x6e
+          #x74 #x61 #x74 #x69
+          #x6f #x6e #x2f #x61
+          #x6c #x6c #x2d #x6d
+          #x65 #x73 #x73 #x61
+          #x67 #x65 #x73 0
+          #x2c 0    0    0
+          0    0    0    #x2c
+          #x2f #x66 #x6f #x6f
+          #x2f #x73 #x74 #x72
+          #x69 #x6e #x67 #x6d
+          #x65 #x73 #x73 #x61
+          #x67 #x65 0    0
+          #x2c #x73 #x73 #x73
+          0    0    0    0
+          #x61 0    0    0
+          #x66 #x65 #x77 0
+          #x73 #x74 #x72 #x69
+          #x6e #x67 #x73 0
+          0    0    0    #x1c
+          #x2f #x76 #x6f #x69
+          #x63 #x65 #x73 #x2f
+          #x30 #x2f #x74 #x6d
+          #x2f #x73 #x74 #x61
+          #x72 #x74 0    0
+          #x2c #x66 0    0
+          0    0    0    0)))))
+
+(test osc-t8
+  "OSC message encoding test. blob."
+  (is (equalp
+       (osc::encode-message "/blob/x" #(1 2 3 4 5 6 7 8 9))
+       #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0))))
+
+(test osc-t9
+  "OSC message decoding test. blob."
+  (is (equalp
+       '("/blob/x" #(1 2 3 4 5 6 7 8 9))
+       (osc::decode-message
+        #(47 98 108 111 98 47 120 0 44 98 0 0 0 0 0 9 1 2 3 4 5 6 7 8 9 0 0 0)))))
+
+(test osc-t10
+  "OSC message decoding test. blob, int, string."
+  (is (equalp '("/blob" #(1 29 32 43 54 66 78 81) "lop" 2)
+              (osc:decode-message
+               #(47 98 108 111 98 0 0 0 44 98 115 105 0 0 0
+                 0 0 0 0 8 1 29 32 43 54 66 78 81
+                 108 111 112 0 0 0 0 2)))))
+(test osc-t11
+  "OSC bundle decoding test."
+  (is (equalp
+       '(#(0 0 0 0 0 0 0 1)
+         ("/string/a/ling" "slink" "slonk" "slank")
+         ("/we/wo/w" 1 2 3.4)
+         ("/blob" #(1 29 32 43 54 66 78 81 90) "lop" -0.44))
+       (osc:decode-bundle
+        #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 40 47 98 108 111 98 0 0 0
+          44 98 115 102 0 0 0 0 0 0 0 9 1 29 32 43 54 66 78 81 90 0 0 0 108 111 112 0
+          190 225 71 174 0 0 0 32 47 119 101 47 119 111 47 119 0 0 0 0 44 105 105 102 0
+          0 0 0 0 0 0 1 0 0 0 2 64 89 153 154 0 0 0 48 47 115 116 114 105 110 103 47 97
+          47 108 105 110 103 0 0 44 115 115 115 0 0 0 0 115 108 105 110 107 0 0 0 115
+          108 111 110 107 0 0 0 115 108 97 110 107 0 0 0)))))
 
 
 ;; equalp but not eql
-(defun osc-t12 ()
-  (equalp (osc:encode-message "/asdasd" 3.6 4.5)
-          #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0)))
+(test osc-t13
+  "OSC message encoding test."
+  (is (equalp
+       (osc:encode-message "/asdasd" 3.6 4.5)
+       #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))))
 
 ;; equal but not eql
-(defun osc-t13 ()
-  (equal (osc:decode-message #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))
-         (list "/asdasd" 3.6 4.5)))
+(test osc-t14
+  "OSC message decoding test."
+  (is (equalp
+       (osc:decode-message
+        #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))
+       (list "/asdasd" 3.6 4.5))))
 
-;; not symmetrical?  how much of a problem is this?
-(defun osc-asym-t1 ()
-  "this test will fail"
-  (osc:decode-message
-   (osc:encode-message
-    (osc:decode-message #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0)))))
+;; symmetrical?  how much of a issue is this?
+(test osc-recode
+  "OSC message encoding & decoding symmetry test."
+  (let ((message (osc:decode-message
+                  #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))))
+    (is (equalp
+         message
+         (osc:decode-message
+          (apply #'osc:encode-message message))))))
 
-(defun osc-asym-t2 ()
-  "testing the assumptions about representations of messages"
-  (setf packed-msg #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))
-  (setf cons-msg (osc:decode-message packed-msg))
-  (osc:encode-message (values-list cons-msg)))
+;; partially pathological string tests...
+(test osc-sp1
+  (is (equalp
+       (osc:encode-message "/s/t0" "four")
+       #(47 115 47 116 48 0 0 0 44 115 0 0 102 111 117 114 0 0 0 0)))
+  (is (equalp
+       (osc:decode-message #(47 115 47 116 48 0 0 0 44 115 0 0 102 111 117 114 0 0 0 0))
+       '("/s/t0" "four"))))
+
+(test osc-sp2
+  (is (equalp
+       (osc:encode-message "/s/t0" 2 "xxxxx" 3)
+       #(47 115 47 116 48 0 0 0 44 105 115 105 0 0 0 0
+         0 0 0 2 120 120 120 120 120 0 0 0 0 0 0 3)))
+  (is (equalp
+       (osc:decode-message
+        #(47 115 47 116 48 0 0 0 44 105 115 105 0 0 0 0
+          0 0 0 2 120 120 120 120 120 0 0 0 0 0 0 3))
+       '("/s/t0" 2 "xxxxx" 3))))
+
+;; (test osc-t16
+;;       "OSC message encoding & decoding symmetry test."
+;;  (let* ((packed-msg #(47 97 115 100 97 115 100 0 44 102 102 0 64 102 102 102 64 144 0 0))
+;;         (cons-msg (osc:decode-message packed-msg)))
+;;    (is (equalp
+;;         packed-msg
+;;         (osc:encode-message (values-list cons-msg))))))
+
+;; v1.0 tests
+(in-suite protocol-v1.0)
+
+(test v1.0-required-types
+  "OSC data encoding test. All required types for v1.0"
+  (is (equalp
+       #(0 0 0 3 116 101 115 116 0 0 0 0 67 82 0 0 0 0 0 4 1 2 3 4)
+       (osc::encode-data '(3 "test" 2.1e2 #(1 2 3 4))))))
+
+;; v1.1. tests
+(in-suite protocol-v1.1)
+
+;; play nicely with others
+(in-suite interoperability)
 
 #|
 sc3 server
@@ -209,5 +310,4 @@ sc3 server
 
 |#
 
-(defun run-tests ()
-  (osc-test))
+(run! 'synchroscope)

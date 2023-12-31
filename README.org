@@ -1,0 +1,89 @@
+# -*- mode: org;  coding: utf-8; -*-
+#+title: Open Sound Control
+
+This is a lisp implementation of the Open Sound Control protocol (or more accurately  “data transport specification” or “encoding”). The code should be close to ANSI standard common lisp and provides self contained code for encoding and decoding of OSC data, messages, and bundles. Since OSC describes a transport independent encoding (and does not specify a transport layer) messages can be send using TCP,  UDP or other network protocols (e.g. [[https://www.rfc-editor.org/rfc/rfc2549][RFC 2549]]). It seems UDP is more common amongst  programmes that communicate using OSC and. the =osc-examples.lisp= file contains a few simple examples of how to send and receive OSC via UDP. The examples are reasonably compatible with the packets send from/to max-msp, pd, supercollider and liblo. more details about OSC can be found at https://OpenSoundControl.org
+
+The current version of this code is available from github
+
+#+BEGIN_SRC shell
+git clone https://github.com/zzkt/osc
+#+END_SRC
+
+or via quicklisp.. .
+
+#+BEGIN_SRC lisp
+(ql:quickload "osc")
+#+END_SRC
+
+** OSC 1.0 and 1.1 support
+
+This implementation supports the [[https://opensoundcontrol.stanford.edu/spec-1_0.html][OpenSoundControl Specification 1.0]] and the required typetags listed in the [[https://opensoundcontrol.stanford.edu/spec-1_1.html][OpenSoundControl Specification 1.1]] (as described in an [[https://opensoundcontrol.stanford.edu/files/2009-NIME-OSC-1.1.pdf][NIME 2009 paper]] ). Some optional types are supported.
+
+| *Type tag* | *type*        | *description*                                                                                 | *v1.0* | *v1.1* | *cl-osc* |
+| i        | int32       | 32-bit big-endian two’s complement integer                                                  | *R*    | *R*    | YES    |
+| f        | float32     | 32-bit big-endian IEEE 754 floating point number                                            | *R*    | *R*    | YES    |
+| s        | OSC-string  | A sequence of non-null ASCII characters followed by a null,                                 |      | *R*    |        |
+|          |             | followed by 0-3 additional null characters. Total bits is a multiple of 32.                 | *R*    | N    | YES    |
+| b        | OSC-blob    | An int32 size count, followed by that many 8-bit bytes of arbitrary binary data,            |      | *R*    |        |
+|          |             | followed by 0-3 additional zero bytes. Total bits is a multiple of 32.                      | *R*    | N    | YES    |
+| T        | True        | No bytes are allocated in the argument data.                                                | O    | *R*    |        |
+| F        | False       | No bytes are allocated in the argument data.                                                | O    | *R*    |        |
+| N        | Null        | (aka nil, None, etc). No bytes are allocated in the argument data.                          | O    | *R*    |        |
+| I        | Impulse     | (aka “bang”), used for event triggers. No bytes are allocated in the argument data.         | O    | *R*    |        |
+| t        | OSC-timetag | an OSC timetag in NTP format, encoded in the data section                                   | O    | *R*    |        |
+| h        | int64       | 64 bit big-endian two’s complement integer                                                  | O    | O    | YES    |
+| d        | float64     | 64 bit (“double”) IEEE 754 floating point number                                            | O    | O    |        |
+| S        | OSC-string  | Alternate type represented as an OSC-string (e.g to differentiate “symbols” from “strings”) | O    | O    | YES    |
+| c        |             | an ascii character, sent as 32 bits                                                         | O    | O    |        |
+| r        |             | 32 bit RGBA color                                                                           | O    | O    |        |
+| m        |             | 4 byte MIDI message. Bytes from MSB to LSB are: port id, status byte, data1, data2          | O    | O    |        |
+| [        |             | Indicates the beginning of an array. The tags following are for data in the Array.          | O    | O    | YES?   |
+| ]        |             | Indicates the end of an array.                                                              | O    | O    | YES?   |
+
+
+- *R*equired, *O*ptional and *N*ot supported (or *N*ot required).
+- data is encoded as =(vector (unsigned 8))= by =cl-osc=
+
+* Float encoding & decoding
+
+#+BEGIN_SRC lisp
+(defun encode-float32 (f)
+  "Encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specific."
+  (encode-int32 (ieee-floats:encode-float32 f)))
+  ;; #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
+  ;; #+cmucl (encode-int32 (kernel:single-float-bits f))
+  ;; #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
+  ;; #+allegro (encode-int32 (multiple-value-bind (x y)
+  ;;                           (excl:single-float-to-shorts f)
+  ;;                           (+ (ash x 16) y)))
+  ;; #-(or sbcl cmucl openmcl allegro ieee-floats) (error "Can't encode single-floats using this implementation."))
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(defun decode-float32 (v)
+  "Convert a vector of 4 bytes in network byte order into an ieee754 float."
+  (ieee-floats:decode-float32 (decode-int32 v)))
+  ;; #+sbcl (sb-kernel:make-single-float (decode-int32 v))
+  ;; #+cmucl (kernel:make-single-float (decode-int32 v))
+  ;; #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 v))
+  ;; #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-int32 v))
+  ;;                                        (ldb (byte 16 0) (decode-int32 v)))
+  ;; #-(or sbcl cmucl openmcl allegro) (error "Can't decode single-floats using this implementation."))
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(defun encode-float64 (d)
+  "Encode an ieee754 float as a 8 byte vector. currently sbcl/cmucl specific."
+  #+sbcl (cat (encode-int32 (sb-kernel:double-float-high-bits d))
+              (encode-int32 (sb-kernel:double-float-low-bits d)))
+  #-(or sbcl ieee-floats) (error "Can't encode double-floats using this implementation."))
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(defun decode-float64 (v)
+  "Convert a vector of 8 bytes in network byte order into an ieee754 float."
+  #+sbcl (sb-kernel:make-double-float
+          (decode-uint32 (subseq v 0 4))
+          (decode-uint32 (subseq v 4 8)))
+  #-(or sbcl ieee-floats) (error "Can't decode single-floats using this implementation."))
+#+END_SRC

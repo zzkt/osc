@@ -9,34 +9,35 @@
 ;;; the Free Software Foundation, either version 3 of the License, or
 ;;; (at your option) any later version.
 ;;;
-;;; authors
+;;; Authors
 ;;;
 ;;;  nik gaffney <nik@fo.am> and the listed AUTHORS
 ;;;
-;;; requirements
+;;; Requirements
 ;;;
-;;;  dependent on sbcl, cmucl or openmcl for float encoding, other suggestions
-;;;  welcome.
+;;;  depends on ieee-floats for float encoding and 5am for testing
 ;;;
-;;; commentary
+;;; Commentary
 ;;;
-;;;  this is a partial implementation of the OSC protocol which is used
+;;;  This is an implementation of the OSC protocol which is used
 ;;;  for communication mostly amongst music programs and their attached
-;;;  musicians. eg. sc3, max/pd, reaktor/traktorska etc+. more details
-;;;  of the protocol can be found at the open sound control pages -=>
-;;;                     http://www.cnmat.berkeley.edu/OpenSoundControl/
+;;;  musicians (eg. supercollider, max/pd, ableton, etc).
 ;;;
+;;;  The OSC V1.0 is supported, and there is partial support for V1.1
+;;;  More details of the protocol can be found at
+;;;                     http://OpenSoundControl.org
 ;;;
-;;;  see the README file for more details...
+;;;  see the README file for further details...
 ;;;
-;;;  known BUGS/Issues
+;;;  Known BUGS/Issues
 ;;;   - encoding a :symbol that is unbound or without symbol-value causes an error
 ;;;   - unknown types are sent as 'blobs' which may or may not be an issue
 ;;;   - malformed input -> exception
 
 (defpackage :osc
   (:use :cl)
-  (:documentation "OSC aka the 'open sound control' protocol")
+  (:shadow :ieee-floats)
+  (:documentation "OSC the 'Open Sound Control' protocol")
   (:export
    #:encode-message
    #:encode-bundle
@@ -87,7 +88,7 @@
 
   NOTE: currently handles the following tags
    i => #(105) => int32
-   f => #(102) => float
+   f => #(102) => float32
    s => #(115) => string
    b => #(98)  => blob
    h => #(104) => int64
@@ -167,7 +168,7 @@
   "Decode DATA encoded with typetags.
   NOTE: currently handles the following tags
    i => #(105) => int32
-   f => #(102) => float
+   f => #(102) => float32
    s => #(115) => string
    b => #(98)  => blob
    h => #(104) => int64"
@@ -265,26 +266,7 @@
 ;;
 ;;; ;; ;   ;  ;
 
-;; floats are encoded using implementation specific 'internals' which is not
-;; particularly portable, but 'works for now'.
-
-(defun encode-float32 (f)
-  "Encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specific."
-  #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
-  #+cmucl (encode-int32 (kernel:single-float-bits f))
-  #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
-  #+allegro (encode-int32 (multiple-value-bind (x y) (excl:single-float-to-shorts f)
-                            (+ (ash x 16) y)))
-  #-(or sbcl cmucl openmcl allegro) (error "Can't encode floats using this implementation."))
-
-(defun decode-float32 (s)
-  "Convert a vector of 4 bytes in network byte order into an ieee754 float."
-  #+sbcl (sb-kernel:make-single-float (decode-int32 s))
-  #+cmucl (kernel:make-single-float (decode-int32 s))
-  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 s))
-  #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-int32 s))
-                                         (ldb (byte 16 0) (decode-int32 s)))
-  #-(or sbcl cmucl openmcl allegro) (error "Can't decode floats using this implementation."))
+;; integers. 32 and 64 bit. signed and unsigned.
 
 (defmacro defint-decoder (num-of-octets &optional docstring)
   (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
@@ -296,12 +278,11 @@
        (let* ((,int 0)
               ,@(loop
                   for n below num-of-octets
-                  collect `(,int (dpb (aref ,seq ,n) (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
-                                      ,int))))
+                  collect `(,int
+                            (dpb (aref ,seq ,n)
+                                 (byte 8 (* 8 (- (1- ,num-of-octets) ,n)))
+                                 ,int))))
          ,int))))
-
-(defint-decoder 4 "4 byte -> 32 bit unsigned int")
-(defint-decoder 8 "8 byte -> 64 bit unsigned int")
 
 (defmacro defint-encoder (num-of-octets &optional docstring)
   (let ((enc-name (intern (format nil "~:@(encode-int~)~D" (* 8 num-of-octets))))
@@ -318,6 +299,11 @@
                                  ,int)))
          ,buf))))
 
+;; generate functions decode-uint32 and decode-uint64
+(defint-decoder 4 "4 byte -> 32 bit unsigned int")
+(defint-decoder 8 "8 byte -> 64 bit unsigned int")
+
+;; generate functions encode-int32 and encode-int64
 (defint-encoder 4 "Convert an integer into a sequence of 4 bytes in network byte order.")
 (defint-encoder 8 "Convert an integer into a sequence of 8 bytes in network byte order.")
 
@@ -334,6 +320,28 @@
     (if (>= i #.(1- (expt 2 63)))
         (- (- #.(expt 2 64) i))
         i)))
+
+;; floats are encoded using ieee-floats library for brevity and compatibility
+;; - https://ieee-floats.common-lisp.dev/
+;;
+;; implementation specific encoding can be used for sbc, cmucl,
+;; allegro or ccl if required (see README)
+
+(defun encode-float32 (f)
+  "Encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specific."
+  (encode-int32 (ieee-floats:encode-float32 f)))
+
+(defun decode-float32 (v)
+  "Convert a vector of 4 bytes in network byte order into an ieee754 float."
+  (ieee-floats:decode-float32 (decode-uint32 v)))
+
+(defun encode-float64 (d)
+  "Encode an ieee754 float as a 8 byte vector."
+   (encode-int64 (ieee-floats:encode-float64 d)))
+
+(defun decode-float64 (v)
+  "Convert a vector of 8 bytes in network byte order into an ieee754 float."
+     (ieee-floats:decode-float64 (decode-int64 v)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary
 
@@ -365,7 +373,8 @@
 ;; utility functions for osc-string/padding/slonking
 
 (defun cat (&rest catatac)
-  (apply #'concatenate '(vector *) catatac))
+  "Concatenate items into a byte vector."
+  (apply #'concatenate '(vector (unsigned-byte 8)) catatac))
 
 (defun padding-length (s)
   "Return the length of padding required for a given length of string."
