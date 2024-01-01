@@ -117,7 +117,7 @@
                     (:false (write-to-vector #\F))
                     (:null (write-to-vector #\N))
                     (:impulse (write-to-vector #\I))))
-          (null ('false (write-to-vector #\F)))
+          (null (write-to-vector #\F))
           ;; anything else is treated as a blob
           (t (write-to-vector #\b)))))
     (cat lump
