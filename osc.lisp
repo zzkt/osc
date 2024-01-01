@@ -82,29 +82,43 @@
 
 (defun encode-typetags (data)
   "Create a typetag string suitable for the given DATA.
-  valid typetags according to the OSC spec are ,i ,f ,s and ,b
-  non-std extensions include ,{h|t|d|S|c|r|m|T|F|N|I|[|]}
-                             see the spec for more details. ..
+  valid typetags according to the OSC 1.0 spec are ,i ,f ,s and ,b
+  the OSC 1.1 spec includes ,h ,t ,d ,S ,T ,F ,N and ,I
 
-  NOTE: currently handles the following tags
-   i => #(105) => int32
-   f => #(102) => float32
-   s => #(115) => string
-   b => #(98)  => blob
-   h => #(104) => int64
-  and considers non int/float/string data to be a blob."
+  The following tags are written based on type check
+          integer => i => #(105)
+                  => h => #(104)
+     single-float => f => #(102)
+    double-float  => d => #(100)
+   simple-string  => s => #(115)
+                * => b => #(98)
 
+ The following tags are written based on :keywords in the data
+   :true (or t) => T => #(84)
+        :false  => F => #(70)
+          :null => N => #(78)
+      :impulse  => I => #(73)
+"
   (let ((lump (make-array 0 :adjustable t
                             :fill-pointer t)))
     (macrolet ((write-to-vector (char)
                  `(vector-push-extend
                    (char-code ,char) lump)))
-      (write-to-vector #\,)
+      (write-to-vector #\,) ;; #(44)
       (dolist (x data)
         (typecase x
           (integer (if (>= x 4294967296) (write-to-vector #\h) (write-to-vector #\i)))
-          (float (write-to-vector #\f))
+          (single-float (write-to-vector #\f))
+          (double-float (write-to-vector #\d))
           (simple-string (write-to-vector #\s))
+          ;; lisp semantics vs. OSC semantics
+          (keyword (case x
+                    (:true (write-to-vector #\T))
+                    (:false (write-to-vector #\F))
+                    (:null (write-to-vector #\N))
+                    (:impulse (write-to-vector #\I))))
+          (null ('false (write-to-vector #\F)))
+          ;; anything else is treated as a blob
           (t (write-to-vector #\b)))))
     (cat lump
          (pad (padding-length (length lump))))))
@@ -117,8 +131,10 @@
       (dolist (x data)
         (typecase x
           (integer (if (>= x 4294967296) (enc encode-int64) (enc encode-int32)))
-          (float (enc encode-float32))
+          (single-float (enc encode-float32))
+          (double-float (enc encode-float64))
           (simple-string (enc encode-string))
+          ;; -> timetag
           (t (enc encode-blob))))
       lump)))
 
@@ -324,24 +340,41 @@
 ;; floats are encoded using ieee-floats library for brevity and compatibility
 ;; - https://ieee-floats.common-lisp.dev/
 ;;
-;; implementation specific encoding can be used for sbc, cmucl,
-;; allegro or ccl if required (see README)
+;; It should be possible to use 32 and 64 bit floats in most common lisp environments.
+;; An implementation specific encoder/decoder is used where available.
 
 (defun encode-float32 (f)
   "Encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specific."
-  (encode-int32 (ieee-floats:encode-float32 f)))
+  #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
+  #+cmucl (encode-int32 (kernel:single-float-bits f))
+  #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
+  #+allegro (encode-int32 (multiple-value-bind (x y)
+                            (excl:single-float-to-shorts f)
+                            (+ (ash x 16) y)))
+  #-(or sbcl cmucl openmcl allegro) (encode-int32 (ieee-floats:encode-float32 f)))
 
 (defun decode-float32 (v)
   "Convert a vector of 4 bytes in network byte order into an ieee754 float."
-  (ieee-floats:decode-float32 (decode-uint32 v)))
+  #+sbcl (sb-kernel:make-single-float (decode-uint32 v))
+  #+cmucl (kernel:make-single-float (decode-int32 v))
+  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 v))
+  #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-uint32 v))
+                                         (ldb (byte 16 0) (decode-uint32 v)))
+  #-(or sbcl cmucl openmcl allegro) (ieee-floats:decode-float32 (decode-uint32 v)))
+
 
 (defun encode-float64 (d)
   "Encode an ieee754 float as a 8 byte vector."
-   (encode-int64 (ieee-floats:encode-float64 d)))
+  #+sbcl (cat (encode-int32 (sb-kernel:double-float-high-bits d))
+              (encode-int32 (sb-kernel:double-float-low-bits d)))
+  #-sbcl (encode-int64 (ieee-floats:encode-float64 d)))
 
 (defun decode-float64 (v)
   "Convert a vector of 8 bytes in network byte order into an ieee754 float."
-     (ieee-floats:decode-float64 (decode-int64 v)))
+  #+sbcl (sb-kernel:make-double-float
+          (decode-uint32 (subseq v 0 4))
+          (decode-uint32 (subseq v 4 8)))
+  #-sbcl (ieee-floats:decode-float64 (decode-uint64 v)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary
 
@@ -355,7 +388,7 @@
        (string-padding string)))
 
 ;; blobs are binary data, consisting of a length (int32) and bytes which are
-;; osc-padded to a 4 byte boundary.
+;; padded to a 4 byte boundary.
 
 (defun decode-blob (blob)
   "Decode a BLOB as a vector of unsigned bytes."
@@ -371,6 +404,7 @@
 ;; NOTE: cannot use (padding-length bl), as it is not the same algorithm. Blobs of 4, 8, 12 etc bytes should not be padded!
 
 ;; utility functions for osc-string/padding/slonking
+;; NOTE: string padding is treated differently between v1.0 and v1.1
 
 (defun cat (&rest catatac)
   "Concatenate items into a byte vector."

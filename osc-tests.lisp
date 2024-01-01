@@ -66,6 +66,9 @@
   (is (equalp
        (osc::decode-float32  #(254 254 254 254)) -1.6947395e38)))
 
+;; (osc::decode-float32 #(127 255 255 255))
+;; #<SINGLE-FLOAT quiet NaN>
+
 (test osc-string
   "OSC string encoding tests."
   (is (equalp
@@ -289,6 +292,28 @@
 
 ;; v1.1. tests
 (in-suite protocol-v1.1)
+
+(test v1.1-required-data-types
+  "OSC data encoding test. All required types for v1.1"
+  (is (equalp
+      #(44 105 104 115 102 100 98 0)
+      (osc::encode-typetags '(3
+                              4294967297
+                              "test"
+                              2.1e2
+                              2.1d23
+                              #(1 2 3 4)
+                              ;; (osc::encode-timetag :now)
+                              )))))
+
+(test v1.1-keyword-typetags
+  "OSC typetag encoding test."
+  (is (equalp
+       (osc::encode-typetags '(:true :false :null :impulse))
+       #(44 84 70 78 73 0 0 0))))
+
+;;  (osc::encode-typetags '("s" 1))
+
 
 ;; play nicely with others
 (in-suite interoperability)
