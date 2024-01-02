@@ -48,11 +48,18 @@
   (is (equalp
        (osc::encode-int32 16843009) #(1 1 1 1)))
   (is (equalp
-       (osc::decode-int32 #(1 1 11 111)) 16845679))
+       (osc::decode-int32 #(127 255 255 255))
+       (osc::decode-uint32 #(127 255 255 255))))
   (is (equalp
        (osc::encode-int32 -16843010) #(254 254 254 254)))
   (is (equalp
-       (osc::decode-int32 #(255 255 255 255)) -1)))
+       (osc::decode-int32 #(127 255 255 255)) #x7FFFFFFF))
+  (is (equalp
+       (osc::encode-int32 #xFFFFFFFF) #(255 255 255 255)))
+  (is (equalp
+       (osc::decode-int32 #(255 255 255 255)) -1))
+  (is (equalp
+       (osc::decode-uint32 #(255 255 255 255)) #xFFFFFFFF)))
 
 (test osc-string
   "OSC string encoding tests."
@@ -113,9 +120,9 @@
   (is (equalp
        (osc::decode-float64 #(64 55 25 153 153 153 153 154)) 23.1d0))
   (is (equalp
-      (osc::decode-float64 #(1 1 1 1 1 1 1 1)) 7.748604185489348d-304))
+       (osc::decode-float64 #(1 1 1 1 1 1 1 1)) 7.748604185489348d-304))
   (is (equalp
-        (osc::decode-float64 #(128 0 0 0 0 0 0 0)) -0.0d0))
+       (osc::decode-float64 #(128 0 0 0 0 0 0 0)) -0.0d0))
   (is (equalp
        (osc::decode-float64 #(255 240 0 0 0 0 0 0))
        :NEGATIVE-INFINITY))
@@ -327,15 +334,15 @@
 (test v1.1-required-data-types
   "OSC data encoding test. All required types for v1.1"
   (is (equalp
-      #(44 105 104 115 102 100 98 0)
-      (osc::encode-typetags '(3
-                              4294967297
-                              "test"
-                              2.1e2
-                              2.1d23
-                              #(1 2 3 4)
-                              ;; (osc::encode-timetag :now)
-                              )))))
+       #(44 105 104 115 102 100 98 0)
+       (osc::encode-typetags '(3
+                               4294967297
+                               "test"
+                               2.1e2
+                               2.1d23
+                               #(1 2 3 4)
+                               ;; (osc::encode-timetag :now)
+                               )))))
 
 (test v1.1-keyword-typetags
   "OSC typetag encoding test."

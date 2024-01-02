@@ -325,15 +325,15 @@
 (defun decode-int32 (s)
   "4 byte -> 32 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint32 s)))
-    (if (>= i #.(1- (expt 2 31)))
-        (- (- #.(expt 2 32) i))
+    (if (>= i (expt 2 31))
+        (- (- (expt 2 32) i))
         i)))
 
 (defun decode-int64 (s)
   "8 byte -> 64 bit int -> two's complement (in network byte order)"
   (let ((i (decode-uint64 s)))
-    (if (>= i #.(1- (expt 2 63)))
-        (- (- #.(expt 2 64) i))
+    (if (>= i (expt 2 63))
+        (- (- (expt 2 64) i))
         i)))
 
 ;; floats are encoded using ieee-floats library for brevity and compatibility
