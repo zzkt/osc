@@ -18,8 +18,11 @@ jobs:
       matrix:
       # current ccl-bin has a flaky zip file, so roswell can't install it.
       # Specify a version that works for now.
-        lisp: [ sbcl-bin, ccl-bin, ecl ]
+        lisp: [ sbcl, ccl-bin, ecl ]
         os: [ windows-latest, ubuntu-latest, macos-latest ]
+        include: 
+          - os: ubuntu-latest
+            lisp: allegro
         exclude: 
           - os: windows-latest
             lisp: ecl
