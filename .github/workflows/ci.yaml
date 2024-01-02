@@ -63,11 +63,11 @@ jobs:
         echo "$HOME/ros/bin" >> $GITHUB_PATH
 
     # Check out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: cache .roswell
       id: cache-dot-roswell
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.roswell
         key: ${{ runner.os }}-dot-roswell-${{ matrix.lisp }}-${{ hashFiles('**/*.asd') }}
