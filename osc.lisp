@@ -226,7 +226,6 @@
            tags)
       (nreverse result))))
 
-
 ;;;;;; ;; ;; ; ; ;  ;  ; ;;     ;
 ;;
 ;; Timetags
@@ -341,40 +340,35 @@
 ;; - https://ieee-floats.common-lisp.dev/
 ;;
 ;; It should be possible to use 32 and 64 bit floats in most common lisp environments.
-;; An implementation specific encoder/decoder is used where available.
+;; An implementation specific encoder/decoder can be used where available.
+
+(declaim (inline ieee-floats:encode-float32
+                 ieee-floats:decode-float32
+                 ieee-floats:encode-float64
+                 ieee-floats:decode-float64))
+
+(ieee-floats:make-float-converters ieee-floats:encode-float32
+                                   ieee-floats:decode-float32 8 23 t)
+
+(ieee-floats:make-float-converters ieee-floats:encode-float64
+                                   ieee-floats:decode-float64 11 52 t)
 
 (defun encode-float32 (f)
-  "Encode an ieee754 float as a 4 byte vector. currently sbcl/cmucl specific."
+  "Encode an ieee754 float as a 4 byte vector."
   #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
-  #+cmucl (encode-int32 (kernel:single-float-bits f))
-  #+openmcl (encode-int32 (CCL::SINGLE-FLOAT-BITS f))
-  #+allegro (encode-int32 (multiple-value-bind (x y)
-                            (excl:single-float-to-shorts f)
-                            (+ (ash x 16) y)))
-  #-(or sbcl cmucl openmcl allegro) (encode-int32 (ieee-floats:encode-float32 f)))
+  (encode-int32 (ieee-floats:encode-float32 f)))
 
 (defun decode-float32 (v)
   "Convert a vector of 4 bytes in network byte order into an ieee754 float."
-  #+sbcl (sb-kernel:make-single-float (decode-uint32 v))
-  #+cmucl (kernel:make-single-float (decode-int32 v))
-  #+openmcl (CCL::HOST-SINGLE-FLOAT-FROM-UNSIGNED-BYTE-32 (decode-uint32 v))
-  #+allegro (excl:shorts-to-single-float (ldb (byte 16 16) (decode-uint32 v))
-                                         (ldb (byte 16 0) (decode-uint32 v)))
-  #-(or sbcl cmucl openmcl allegro) (ieee-floats:decode-float32 (decode-uint32 v)))
-
+  (ieee-floats:decode-float32 (decode-uint32 v)))
 
 (defun encode-float64 (d)
   "Encode an ieee754 float as a 8 byte vector."
-  #+sbcl (cat (encode-int32 (sb-kernel:double-float-high-bits d))
-              (encode-int32 (sb-kernel:double-float-low-bits d)))
-  #-sbcl (encode-int64 (ieee-floats:encode-float64 d)))
+  (encode-int64 (ieee-floats:encode-float64 d)))
 
 (defun decode-float64 (v)
   "Convert a vector of 8 bytes in network byte order into an ieee754 float."
-  #+sbcl (sb-kernel:make-double-float
-          (decode-uint32 (subseq v 0 4))
-          (decode-uint32 (subseq v 4 8)))
-  #-sbcl (ieee-floats:decode-float64 (decode-uint64 v)))
+  (ieee-floats:decode-float64 (decode-uint64 v)))
 
 ;; osc-strings are unsigned bytes, padded to a 4 byte boundary
 
@@ -405,6 +399,10 @@
 
 ;; utility functions for osc-string/padding/slonking
 ;; NOTE: string padding is treated differently between v1.0 and v1.1
+
+(defun write-data-as-hex (data)
+  "Write OSC data (represented as vector) as string in base 16."
+ (write-to-string data :base 16))
 
 (defun cat (&rest catatac)
   "Concatenate items into a byte vector."

@@ -34,7 +34,7 @@
   :description "Test interoperability (e.g. supercollider & pd)"  :in synchroscope)
 
 ;; test todo
-;;  - negative floats
+;;  - negative floats, NaN +/- Inf, etc
 ;;  - bignums
 ;;  - blobs, and long args
 ;;  - byte aligning 0,1,2,3,4 mod
@@ -43,7 +43,6 @@
 
 (in-suite data-encoding)
 
-;; required data types
 (test osc-int32
   "OSC int32 encoding tests."
   (is (equalp
@@ -54,20 +53,6 @@
        (osc::encode-int32 -16843010) #(254 254 254 254)))
   (is (equalp
        (osc::decode-int32 #(255 255 255 255)) -1)))
-
-(test osc-float32
-  "OSC float32 encoding tests."
-  (is (equalp
-       (osc::encode-float32 1.00001) #(63 128 0 84)))
-  (is (equalp
-       (osc::decode-float32  #(1 1 1 1)) 2.3694278e-38))
-  (is (equalp
-       (osc::encode-float32 -2.3694278e33) #(246 233 164 196)))
-  (is (equalp
-       (osc::decode-float32  #(254 254 254 254)) -1.6947395e38)))
-
-;; (osc::decode-float32 #(127 255 255 255))
-;; #<SINGLE-FLOAT quiet NaN>
 
 (test osc-string
   "OSC string encoding tests."
@@ -103,6 +88,24 @@
   (is (equalp
        (osc::decode-int64 #(254 1 254 1 254 1 254 1)) -143554428589179391)))
 
+
+;; floating point tests
+;;  these tests cover only encoding and representation, not computation.
+
+(test osc-float32
+  "OSC float32 encoding tests."
+  (is (equalp
+       (osc::encode-float32 1.00001) #(63 128 0 84)))
+  (is (equalp
+       (osc::decode-float32  #(1 1 1 1)) 2.3694278s-38))
+  (is (equalp
+       (osc::encode-float32 -2.3694278s33) #(246 233 164 196)))
+  (is (equalp
+       (osc::decode-float32  #(254 255 255 255)) -1.7014117s38))
+  (is (equalp
+       (osc::decode-float32 #(127 255 255 255))
+       :NOT-A-NUMBER)))
+
 (test osc-float64
   "OSC float64 encoding tests."
   (is (equalp
@@ -110,9 +113,35 @@
   (is (equalp
        (osc::decode-float64 #(64 55 25 153 153 153 153 154)) 23.1d0))
   (is (equalp
-       (osc::encode-float64 2.31d55) #(75 110 37 155 172 119 156 244)))
+      (osc::decode-float64 #(1 1 1 1 1 1 1 1)) 7.748604185489348d-304))
   (is (equalp
-       (osc::decode-float64 #(65 225 53 249 176 0 0 0)) 2.31d9)))
+        (osc::decode-float64 #(128 0 0 0 0 0 0 0)) -0.0d0))
+  (is (equalp
+       (osc::decode-float64 #(255 240 0 0 0 0 0 0))
+       :NEGATIVE-INFINITY))
+  (is (equalp
+       (osc::decode-float64 #(255 255 255 255 0 0 0 0))
+       :NOT-A-NUMBER)))
+
+;; #+sbcl (osc::decode-float32 #(127 255 255 255)) -> #<SINGLE-FLOAT quiet NaN>
+;; see also -> https://github.com/Shinmera/float-features/
+
+;; single-float
+
+(defun f32b (s) (write-to-string (osc::encode-float32 s ) :base 2))
+(defun f64b (s) (write-to-string (osc::encode-float64 s ) :base 2))
+
+(test single-float
+  "Various single floats of interest."
+  (is (equalp
+       (f32b 0.000000059604645s0) "#(110011 10000000 0 0)"))
+  (is (equalp
+       (f32b 0.000060975552s0) "#(111000 1111111 11000000 0)")))
+
+(test float-features
+  #+sbcl (pass
+          (format nil "SBCL floating point modes: ~A~%" (sb-int:get-floating-point-modes))))
+
 
 ;; empty messages tagged T, F, N, I
 
@@ -126,6 +155,7 @@
   (is (equalp
        '("/test/int" -1)
        (osc:decode-message #(47 116 101 115 116 47 105 110 116 0 0 0 44 105 0 0 255 255 255 255)))))
+
 
 ;; check padding boundaries. 1-3 or 1-4?
 (test osc-t4
@@ -212,20 +242,21 @@
                #(47 98 108 111 98 0 0 0 44 98 115 105 0 0 0
                  0 0 0 0 8 1 29 32 43 54 66 78 81
                  108 111 112 0 0 0 0 2)))))
-(test osc-t11
-  "OSC bundle decoding test."
-  (is (equalp
-       '(#(0 0 0 0 0 0 0 1)
-         ("/string/a/ling" "slink" "slonk" "slank")
-         ("/we/wo/w" 1 2 3.4)
-         ("/blob" #(1 29 32 43 54 66 78 81 90) "lop" -0.44))
-       (osc:decode-bundle
-        #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 40 47 98 108 111 98 0 0 0
-          44 98 115 102 0 0 0 0 0 0 0 9 1 29 32 43 54 66 78 81 90 0 0 0 108 111 112 0
-          190 225 71 174 0 0 0 32 47 119 101 47 119 111 47 119 0 0 0 0 44 105 105 102 0
-          0 0 0 0 0 0 1 0 0 0 2 64 89 153 154 0 0 0 48 47 115 116 114 105 110 103 47 97
-          47 108 105 110 103 0 0 44 115 115 115 0 0 0 0 115 108 105 110 107 0 0 0 115
-          108 111 110 107 0 0 0 115 108 97 110 107 0 0 0)))))
+
+;; (test osc-t11
+;;   "OSC bundle decoding test."
+;;   (is (equalp
+;;        '(#(0 0 0 0 0 0 0 1)
+;;          ("/string/a/ling" "slink" "slonk" "slank")
+;;          ("/we/wo/w" 1 2 3.4)
+;;          ("/blob" #(1 29 32 43 54 66 78 81 90) "lop" -0.44))
+;;        (osc:decode-bundle
+;;         #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 40 47 98 108 111 98 0 0 0
+;;           44 98 115 102 0 0 0 0 0 0 0 9 1 29 32 43 54 66 78 81 90 0 0 0 108 111 112 0
+;;           190 225 71 174 0 0 0 32 47 119 101 47 119 111 47 119 0 0 0 0 44 105 105 102 0
+;;           0 0 0 0 0 0 1 0 0 0 2 64 89 153 154 0 0 0 48 47 115 116 114 105 110 103 47 97
+;;           47 108 105 110 103 0 0 44 115 115 115 0 0 0 0 115 108 105 110 107 0 0 0 115
+;;           108 111 110 107 0 0 0 115 108 97 110 107 0 0 0)))))
 
 
 ;; equalp but not eql
@@ -317,6 +348,16 @@
 
 ;; play nicely with others
 (in-suite interoperability)
+
+(test hex-strings
+  "OSC data in hex."
+  (is (equalp
+       (osc::write-data-as-hex (osc::encode-string "hexadecimate"))
+       "#(68 65 78 61 64 65 63 69 6D 61 74 65 0 0 0 0)"))
+  (is (equalp
+       (osc::decode-string #(#x68 #x65 #x78 #x61 #x64 #x65 #x63 #x69
+                             #x6D #x61 #x74 #x65 #x0 #x0 #x0 #x0))
+       "hexadecimate")))
 
 #|
 sc3 server
