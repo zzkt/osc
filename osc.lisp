@@ -356,7 +356,7 @@
 (defun encode-float32 (f)
   "Encode an ieee754 float as a 4 byte vector."
   #+sbcl (encode-int32 (sb-kernel:single-float-bits f))
-  (encode-int32 (ieee-floats:encode-float32 f)))
+  #-sbcl (encode-int32 (ieee-floats:encode-float32 f)))
 
 (defun decode-float32 (v)
   "Convert a vector of 4 bytes in network byte order into an ieee754 float."
