@@ -30,53 +30,58 @@ The file =osc-test.lisp= contains a test suite which should cover as much as pos
 #+END_SRC
 
 or from a shell...
-
 #+BEGIN_SRC shell
 sbcl --non-interactive --eval '(asdf:test-system "osc")'
 #+END_SRC
 
 or, load the tests directly and run =synchroscope= (which contains all sub-tests)
-
 #+BEGIN_SRC lisp
 (ql:quickload "osc/tests")
 (fiveam:run! 'osc/tests::synchroscope)
 #+END_SRC
 
-** OSC 1.0 and 1.1 support
+** OSC v1.0 and v1.1 protocol support
 
 This implementation supports the [[https://opensoundcontrol.stanford.edu/spec-1_0.html][OpenSoundControl Specification 1.0]] and the required typetags listed in the [[https://opensoundcontrol.stanford.edu/spec-1_1.html][OpenSoundControl Specification 1.1]] (as described in an [[https://opensoundcontrol.stanford.edu/files/2009-NIME-OSC-1.1.pdf][NIME 2009 paper]]). Some optional types are supported.
 
+|----------+-------------+---------------------------------------------------------------------------------------------+------+------+--------|
 | *Type tag* | *type*        | *description*                                                                                 | *v1.0* | *v1.1* | *cl-osc* |
-| i        | int32       | 32-bit big-endian two’s complement integer                                                  | *R*    | *R*    | YES    |
-| f        | float32     | 32-bit big-endian IEEE 754 floating point number                                            | *R*    | *R*    | YES    |
-| s        | OSC-string  | A sequence of non-null ASCII characters followed by a null…                                 |      | *R*    |        |
-|          |             | followed by 0-3 additional null characters. Total bits is a multiple of 32.                 | *R*    | N    | YES    |
-| b        | OSC-blob    | An int32 size count, followed by that many 8-bit bytes of arbitrary binary data…            |      | *R*    |        |
-|          |             | followed by 0-3 additional zero bytes. Total bits is a multiple of 32.                      | *R*    | N    | YES    |
-| T        | True        | No bytes are allocated in the argument data.                                                | O    | *R*    |        |
-| F        | False       | No bytes are allocated in the argument data.                                                | O    | *R*    |        |
-| N        | Null        | (aka nil, None, etc). No bytes are allocated in the argument data.                          | O    | *R*    |        |
-| I        | Impulse     | (aka “bang”), used for event triggers. No bytes are allocated in the argument data.         | O    | *R*    |        |
-| t        | OSC-timetag | an OSC timetag in NTP format, encoded in the data section                                   | O    | *R*    |        |
-| h        | int64       | 64 bit big-endian two’s complement integer                                                  | O    | O    | YES    |
-| d        | float64     | 64 bit (“double”) IEEE 754 floating point number                                            | O    | O    | YES    |
-| S        | OSC-string  | Alternate type represented as an OSC-string (e.g to differentiate “symbols” from “strings”) | O    | O    | YES    |
-| c        |             | an ascii character, sent as 32 bits                                                         | O    | O    |        |
-| r        |             | 32 bit RGBA color                                                                           | O    | O    |        |
-| m        |             | 4 byte MIDI message. Bytes from MSB to LSB are: port id, status byte, data1, data2          | O    | O    |        |
-| [        |             | Indicates the beginning of an array. The tags following are for data in the Array.          | O    | O    | YES?   |
-| ]        |             | Indicates the end of an array.                                                              | O    | O    | YES?   |
+|----------+-------------+---------------------------------------------------------------------------------------------+------+------+--------|
+| i        | int32       | 32-bit big-endian two’s complement integer                                                  | *R*    | *R*    | Y      |
+| f        | float32     | 32-bit big-endian IEEE 754 floating point number                                            | *R*    | *R*    | Y      |
+| s        | OSC-string  | A sequence of non-null ASCII characters followed by a null…                                 |      | *R*    | Y      |
+|          |             | followed by 0-3 additional null characters. Total bits is a multiple of 32.                 | *R*    | N    | Y      |
+| b        | OSC-blob    | An int32 size count, followed by that many 8-bit bytes of arbitrary binary data…            |      | *R*    | Y      |
+|          |             | followed by 0-3 additional zero bytes. Total bits is a multiple of 32.                      | *R*    | N    | Y      |
+| T        | True        | No bytes are allocated in the argument data.                                                | O    | *R*    | Y      |
+| F        | False       | No bytes are allocated in the argument data.                                                | O    | *R*    | Y      |
+| N        | Null        | (aka nil, None, etc). No bytes are allocated in the argument data.                          | O    | *R*    | Y      |
+| I        | Impulse     | (aka “bang”), used for event triggers. No bytes are allocated in the argument data.         | O    | *R*    | Y      |
+| t        | OSC-timetag | an OSC timetag in NTP format, encoded in the data section                                   | O    | *R*    | Y      |
+| h        | int64       | 64 bit big-endian two’s complement integer                                                  | O    | O    | Y      |
+| d        | float64     | 64 bit (“double”) IEEE 754 floating point number                                            | O    | O    | Y      |
+| S        | OSC-string  | Alternate type represented as an OSC-string (e.g to differentiate “symbols” from “strings”) | O    | O    | Y      |
+| c        |             | an ascii character, sent as 32 bits                                                         | O    | O    | Y      |
+| r        |             | 32 bit RGBA color                                                                           | O    | O    | Y      |
+| m        |             | 4 byte MIDI message. Bytes from MSB to LSB are: port id, status byte, data1, data2          | O    | O    | Y      |
+| [        |             | Indicates the beginning of an array. The tags following are for data in the Array.          | O    | O    | ?      |
+| ]        |             | Indicates the end of an array.                                                              | O    | O    | ?      |
+|----------+-------------+---------------------------------------------------------------------------------------------+------+------+--------|
 
-
-- Required, Optional and Not supported (or Not required).
+- Required, Optional and Not supported (or Not required)
+- type =S= is encoded as a UTF-8 string by =cl-osc=
 - data is encoded as =(vector (unsigned 8))= by =cl-osc=
+
 ** Platform support
 
 currently supported and/or tested OS and CL platforms (platform names from github CI & roswell)
 
+|---------+------------------+---------------+----------------|
 |         | macos-latest     | ubuntu-latest | windows-latest |
+|---------+------------------+---------------+----------------|
 | sbcl    | 🟢               | 🟢            | 🟢             |
 | ccl-bin | 🟡 (x86_64 only) | 🟢            | 🟢             |
 | ecl     | 🟢               | 🟢            | ?              |
 | allegro | ?                | 🟡            | ?              |
 | other?  | ?                | ?             | ?              |
+|---------+------------------+---------------+----------------|
