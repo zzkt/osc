@@ -21,6 +21,27 @@ or guix
 guix install cl-osc
 #+END_SRC
 
+** Testing
+
+The file =osc-test.lisp= contains a test suite which should cover as much as possible of the OSC protocol. Tests can be run from the REPL via ASDF or command line.
+
+#+BEGIN_SRC lisp
+(asdf:test-system "osc")
+#+END_SRC
+
+or from a shell...
+
+#+BEGIN_SRC shell
+sbcl --non-interactive --eval '(asdf:test-system "osc")'
+#+END_SRC
+
+or, load the tests directly and run =synchroscope= (which contains all sub-tests)
+
+#+BEGIN_SRC lisp
+(ql:quickload "osc/tests")
+(fiveam:run! 'osc/tests::synchroscope)
+#+END_SRC
+
 ** OSC 1.0 and 1.1 support
 
 This implementation supports the [[https://opensoundcontrol.stanford.edu/spec-1_0.html][OpenSoundControl Specification 1.0]] and the required typetags listed in the [[https://opensoundcontrol.stanford.edu/spec-1_1.html][OpenSoundControl Specification 1.1]] (as described in an [[https://opensoundcontrol.stanford.edu/files/2009-NIME-OSC-1.1.pdf][NIME 2009 paper]]). Some optional types are supported.

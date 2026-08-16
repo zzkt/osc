@@ -23,14 +23,11 @@
 ;;;  for communication mostly amongst music programs and their attached
 ;;;  musicians (eg. supercollider, max/pd, ableton, etc).
 ;;;
-;;;  The OSC V1.0 is supported, and there is partial support for V1.1
-;;;  More details of the protocol can be found at
-;;;                     http://OpenSoundControl.org
-;;;
-;;;  see the README file for further details...
+;;;  The OSC v1.0 and v1.1 protocols are supported.
+;;;  More details can be found in the README and http://OpenSoundControl.org
 ;;;
 ;;;  Known BUGS/Issues
-;;;   - encoding a :symbol that is unbound or without symbol-value causes an error
+;;;   - encoding a symbol (other than OSC 1.1 keywords) causes an error
 ;;;   - unknown types are sent as 'blobs' which may or may not be an issue
 ;;;   - malformed input -> exception
 
@@ -54,9 +51,9 @@
 ;;;; ;;  ;;   ; ; ;;           ;      ;  ;                  ;
 
 (defun encode-bundle (data &optional timetag)
-  "will encode an osc message, or list of messages as a bundle
+  "Encode an OSC message, or list of messages as a bundle
    with an optional timetag (symbol or 64bit int).
-   doesnt handle nested bundles"
+   doesn't (yet) handle nested bundles"
   (cat '(35 98 117 110 100 108 101 0)	; #bundle
        (if timetag
            (encode-timetag timetag)
@@ -70,7 +67,7 @@
     (cat (encode-int32 (length message)) message)))
 
 (defun encode-message (address &rest data)
-  "encodes an osc message with the given address and data."
+  "Encode a message with the given ADDRESS and DATA."
   (concatenate '(vector (unsigned-byte 8))
                (encode-address address)
                (encode-typetags data)
@@ -110,7 +107,9 @@
           (integer (if (>= x 4294967296) (write-to-vector #\h) (write-to-vector #\i)))
           (single-float (write-to-vector #\f))
           (double-float (write-to-vector #\d))
-          (simple-string (write-to-vector #\s))
+          (simple-string (if (every (lambda (c) (< (char-code c) 128)) x)
+                             (write-to-vector #\s) ;; ascii string
+                             (write-to-vector #\S))) ;; alternate (utf-8) string
           ;; lisp semantics vs. OSC semantics
           (keyword (case x
                     (:true (write-to-vector #\T))
@@ -134,6 +133,10 @@
           (single-float (enc encode-float32))
           (double-float (enc encode-float64))
           (simple-string (enc encode-string))
+          ;; keywords and nil have no data payload
+          (keyword (unless (member x '(:true :false :null :impulse))
+                     (enc encode-blob)))
+          (null nil)
           ;; -> timetag
           (t (enc encode-blob))))
       lump)))
@@ -146,7 +149,7 @@
 ;;; ;;    ;;     ; ;     ;      ;      ; ;
 
 (defun decode-bundle (data)
-  "Decode an OSC bundle into a list of decoded-messages.
+  "Decode DATA bundle into a list of decoded-messages.
  The first element is an osc-timetag."
   (let ((contents '()))
     (if (equalp 35 (elt data 0)) ;; a bundle begins with '#'
@@ -167,7 +170,7 @@
         (decode-message data))))
 
 (defun decode-message (message)
-  "Reduce an OSC MESSAGE to an (address . data) pair."
+  "Reduce an osc MESSAGE to an (address . data) pair."
   (declare (type (vector *) message))
   (let ((x (position (char-code #\,) message)))
     (if (eq x NIL)
@@ -184,10 +187,20 @@
   "Decode DATA encoded with typetags.
   NOTE: currently handles the following tags
    i => #(105) => int32
+   h => #(104) => int64
    f => #(102) => float32
+   d => #(100) => float64
    s => #(115) => string
-   b => #(98)  => blob
-   h => #(104) => int64"
+   S => #( 83) => alternate (utf-8) string
+   b => #( 98) => blob
+   t => #(116) => timetag
+   c => #( 99) => ascii character
+   r => #(114) => 32bit RGBA color
+   m => #(109) => 4 byte MIDI message
+   T => #( 84) => true
+   F => #( 70) => false
+   N => #( 78) => nil
+   I => #( 73) => impulse"
 
   (let ((div (position 0 data)))
     (let ((tags (subseq data 1 div))
@@ -201,27 +214,57 @@
                         result)
                   (setf acc (subseq acc 4)))
                  ((eq x (char-code #\h))
-                  (push (decode-uint64 (subseq acc 0 8))
+                  (push (decode-int64 (subseq acc 0 8))
                         result)
                   (setf acc (subseq acc 8)))
                  ((eq x (char-code #\f))
                   (push (decode-float32 (subseq acc 0 4))
                         result)
                   (setf acc (subseq acc 4)))
-                 ((eq x (char-code #\s))
+                 ((eq x (char-code #\d))
+                  (push (decode-float64 (subseq acc 0 8))
+                        result)
+                  (setf acc (subseq acc 8)))
+                 ((eq x (char-code #\t))
+                  (push (decode-timetag (subseq acc 0 8))
+                        result)
+                  (setf acc (subseq acc 8)))
+                 ((or (eq x (char-code #\s))
+                      (eq x (char-code #\S)))
                   (let ((pointer (padded-length (position 0 acc))))
                     (push (decode-string
                            (subseq acc 0 pointer))
                           result)
                     (setf acc (subseq acc pointer))))
+                 ((eq x (char-code #\c))
+                  (push (decode-char (subseq acc 0 4))
+                        result)
+                  (setf acc (subseq acc 4)))
+                 ((eq x (char-code #\r))
+                  (push (decode-rgba (subseq acc 0 4))
+                        result)
+                  (setf acc (subseq acc 4)))
+                 ((eq x (char-code #\m))
+                  (push (decode-midi (subseq acc 0 4))
+                        result)
+                  (setf acc (subseq acc 4)))
                  ((eq x (char-code #\b))
                   (let* ((size (decode-int32 (subseq acc 0 4)))
                          (bl (+ 4 size))
                          (end (+ bl (mod (- 4 bl) 4))))
-                    ;; NOTE: cannot use (padded-length bl), as it is not the same algorithm. Blobs of 4, 8, 12 etc bytes should not be padded!
+                    ;; NOTE: cannot use (padded-length bl) as it is not the same algorithm.
+                    ;; Blobs of 4,8,12.. bytes should not be padded.
                     (push (decode-blob (subseq acc 0 end))
                           result)
                     (setf acc (subseq acc end))))
+                 ((eq x (char-code #\T))
+                  (push t result))
+                 ((eq x (char-code #\F))
+                  (push nil result))
+                 ((eq x (char-code #\N))
+                  (push nil result))
+                 ((eq x (char-code #\I))
+                  (push :impulse result))
                  (t (error "unrecognised typetag ~a" x))))
            tags)
       (nreverse result))))
@@ -281,7 +324,7 @@
 ;;
 ;;; ;; ;   ;  ;
 
-;; integers. 32 and 64 bit. signed and unsigned.
+;; Integers. 32 and 64 bit. signed and unsigned.
 
 (defmacro defint-decoder (num-of-octets &optional docstring)
   (let ((decoder-name (intern (format nil "~:@(decode-uint~)~D" (* 8 num-of-octets))))
@@ -336,7 +379,8 @@
         (- (- (expt 2 64) i))
         i)))
 
-;; floats are encoded using ieee-floats library for brevity and compatibility
+
+;; Floats are encoded using ieee-floats library for brevity and compatibility
 ;; - https://ieee-floats.common-lisp.dev/
 ;;
 ;; It should be possible to use 32 and 64 bit floats in most common lisp environments.
@@ -370,18 +414,93 @@
   "Convert a vector of 8 bytes in network byte order into an ieee754 float."
   (ieee-floats:decode-float64 (decode-uint64 v)))
 
-;; osc-strings are unsigned bytes, padded to a 4 byte boundary
+
+;; Strings in OSC are unsigned bytes, padded to a 4 byte boundary.
+;; ASCII strings are encoded byte for byte. Non-ascii strings are
+;; encoded as UTF-8 bytes (i.e. using OSC 1.1 alternate string tag #\S).
+
+(defparameter +utf8-mask+ #(#x1F #x0F #x07))
+
+(defun utf8-encode-into (vector cp)
+  "Append UTF-8 bytes for character code CP onto VECTOR."
+  ;; 1-byte: cp < #x80, 2-byte: cp < #x800,
+  ;; 3-byte: cp < #x10000, else 4-byte.
+  (cond
+    ((< cp #x80) (vector-push-extend cp vector))
+    ((< cp #x800)
+     (vector-push-extend (logior #xC0 (ash cp -6)) vector)
+     (vector-push-extend (logior #x80 (logand cp #x3F)) vector))
+    ((< cp #x10000)
+     (vector-push-extend (logior #xE0 (ash cp -12)) vector)
+     (vector-push-extend (logior #x80 (logand (ash cp -6) #x3F)) vector)
+     (vector-push-extend (logior #x80 (logand cp #x3F)) vector))
+    (t
+     (vector-push-extend (logior #xF0 (ash cp -18)) vector)
+     (vector-push-extend (logior #x80 (logand (ash cp -12) #x3F)) vector)
+     (vector-push-extend (logior #x80 (logand (ash cp -6) #x3F)) vector)
+     (vector-push-extend (logior #x80 (logand cp #x3F)) vector))))
+
+(defun utf8-encode (cp)
+  "Encode the character code CP as a vector of UTF-8 bytes."
+  (let ((bytes (make-array 0 :element-type '(unsigned-byte 8)
+                           :adjustable t :fill-pointer t)))
+    (utf8-encode-into bytes cp)
+    bytes))
+
+(defun utf8-decode (bytes)
+  "Decode a vector of UTF-8 BYTES into a string.
+   Invalid sequences are decoded one byte at a time."
+  (let* ((len (length bytes))
+         ;; copy leading run of ASCII bytes directly
+         (ascii-end (loop for i below len
+                          while (< (aref bytes i) #x80)
+                          finally (return i)))
+         (result (make-array ascii-end :element-type 'character
+                             :adjustable t :fill-pointer ascii-end)))
+    (loop for j below ascii-end
+          do (setf (aref result j) (code-char (aref bytes j))))
+    ;; decode remaining multi-byte sequences
+    (loop with i = ascii-end
+          while (< i len)
+          do (let* ((b (aref bytes i))
+                    ;; number of bytes acording to lead byte (1-4)
+                    (n (if (< b #x80)
+                           1
+                           (cond ((<= #xC0 b #xDF) 2)
+                                 ((<= #xE0 b #xEF) 3)
+                                 ((<= #xF0 b #xF7) 4)
+                                 (t 1))))
+                    (complete (and (> n 1) (<= (+ i n) len)
+                                   (loop for j from 1 below n
+                                         always (<= #x80 (aref bytes (+ i j)) #xBF)))))
+               ;; invalid or incomplete sequences decode one byte at a time
+               (if (or (= n 1) (not complete))
+                   (vector-push-extend (code-char b) result)
+                   ;; strip lead bits. fold in 6 bits per continuation byte
+                   (let ((cp (logand b (aref +utf8-mask+ (- n 2)))))
+                     (loop for j from 1 below n
+                           do (setf cp (logior (ash cp 6)
+                                               (logand (aref bytes (+ i j)) #x3F))))
+                     (vector-push-extend (code-char cp) result)))
+               (incf i (if complete n 1))))
+    result))
 
 (defun decode-string (data)
   "Convert a binary vector to a string and remove any trailing #\nul characters."
-  (string-trim '(#\nul) (coerce (map 'vector #'code-char data) 'string)))
+  (string-trim '(#\nul) (utf8-decode data)))
 
 (defun encode-string (string)
-  "Encode a STRING as a vector of character-codes padded to 4 byte boundary."
-  (cat (map 'vector #'char-code string)
-       (string-padding string)))
+  "Encode a STRING as a vector of bytes padded to a 4 byte boundary.
+   Non-ascii characters are encoded as UTF-8."
+  (let ((lump (make-array 0 :element-type '(unsigned-byte 8)
+                          :adjustable t :fill-pointer t)))
+    (map nil #'(lambda (c)
+                 (utf8-encode-into lump (char-code c)))
+         string)
+    (cat lump (pad (padding-length (length lump))))))
 
-;; blobs are binary data, consisting of a length (int32) and bytes which are
+
+;; Blobs are binary data, consisting of a length (int32) and bytes which are
 ;; padded to a 4 byte boundary.
 
 (defun decode-blob (blob)
@@ -395,7 +514,55 @@
   (let ((bl (length blob)))
     (cat (encode-int32 bl) blob
          (pad (mod (- 4 bl) 4)))))
-;; NOTE: cannot use (padding-length bl), as it is not the same algorithm. Blobs of 4, 8, 12 etc bytes should not be padded!
+
+
+;; ASCII characters are encoded as int32, with the char-code in the
+;; least significant byte. decodes return the char-code as an integer.
+
+(defun encode-char (char)
+  "Encode CHAR (character, string or char-code) as an int32 byte vector."
+  (encode-int32 (if (numberp char)
+                    (logand char #xFF)
+                    (char-code (char (string char) 0)))))
+
+(defun decode-char (data)
+  "Decode an int32 DATA vector to its ascii char-code."
+  (logand (decode-int32 data) #xFF))
+
+
+;; 32bit RGBA colors and 4 byte MIDI messages are encoded as int32.
+
+(defun encode-rgba (r g b a)
+  "Encode a 32bit RGBA color from red, green, blue and alpha values."
+  (encode-int32 (logand (logior (ash (logand r #xFF) 24)
+                                (ash (logand g #xFF) 16)
+                                (ash (logand b #xFF) 8)
+                                (logand a #xFF))
+                        #xFFFFFFFF)))
+
+(defun decode-rgba (data)
+  "Decode a DATA vector into a list of red, green, blue and alpha values."
+  (let ((rgba (decode-uint32 data)))
+    (list (ldb (byte 8 24) rgba)
+          (ldb (byte 8 16) rgba)
+          (ldb (byte 8 8) rgba)
+          (ldb (byte 8 0) rgba))))
+
+(defun encode-midi (port status data1 data2)
+  "Encode a 4 byte MIDI message from port, status, data1 and data2."
+  (encode-int32 (logand (logior (ash (logand port #xFF) 24)
+                                (ash (logand status #xFF) 16)
+                                (ash (logand data1 #xFF) 8)
+                                (logand data2 #xFF))
+                        #xFFFFFFFF)))
+
+(defun decode-midi (data)
+  "Decode a DATA vector into a list of port, status, data1 and data2."
+  (let ((midi (decode-uint32 data)))
+    (list (ldb (byte 8 24) midi)
+          (ldb (byte 8 16) midi)
+          (ldb (byte 8 8) midi)
+          (ldb (byte 8 0) midi))))
 
 ;; utility functions for osc-string/padding/slonking
 ;; NOTE: string padding is treated differently between v1.0 and v1.1
